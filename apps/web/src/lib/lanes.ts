@@ -85,15 +85,18 @@ export function buildLanes(run: RunRecord, events: RunEventRecord[]): ScenarioLa
     });
 
     // Before the first observation, show the planned original-app checkpoints as not yet observed.
-    if (columns.length === 0) {
-      const [first, second] = PLANNED[scenario];
-      columns.push(
-        { key: `${scenario}-plan-a`, group: 'Original app', moment: 'New subscription', stripeStatus: null, expected: first, observed: null, agreement: 'pending', clock: null },
-        { key: `${scenario}-plan-b`, group: 'Original app', moment: copy.after, stripeStatus: null, expected: second, observed: null, agreement: 'pending', clock: null },
-      );
-    }
+    if (columns.length === 0) columns.push(...plannedColumns(scenario));
     return { scenario, customer: copy.customer, columns };
   });
+}
+
+/** The checkpoints a test will observe first, all "not observed yet". Structure only, never data. */
+export function plannedColumns(scenario: Scenario): LaneColumn[] {
+  const [first, second] = PLANNED[scenario];
+  return [
+    { key: `${scenario}-plan-a`, group: 'Original app', moment: 'New subscription', stripeStatus: null, expected: first, observed: null, agreement: 'pending', clock: null },
+    { key: `${scenario}-plan-b`, group: 'Original app', moment: SCENARIOS[scenario].after, stripeStatus: null, expected: second, observed: null, agreement: 'pending', clock: null },
+  ];
 }
 
 export function boundaryChecks(run: RunRecord): CheckRecord[] {

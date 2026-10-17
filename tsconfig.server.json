@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "rootDir": ".",
+    "outDir": "dist/server"
+  },
+  "include": [
+    "apps/api/src/**/*.ts",
+    "packages/contracts/src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "apps/api/test",
+    "apps/web",
+    "scripts"
+  ]
+}

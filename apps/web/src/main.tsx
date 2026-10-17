@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import { ConnectedApp } from './App';
 import './styles.css';
 
+// CSS entrance animations only run when script is running; without it everything is simply visible.
+document.documentElement.classList.add('js');
+
 const root = createRoot(document.getElementById('root')!);
 const previewState = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('preview') : null;
 

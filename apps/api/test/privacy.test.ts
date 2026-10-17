@@ -40,3 +40,10 @@ test('database credentials are redacted in configured and unexpected connection 
  assert.doesNotMatch(redactDiagnosticText(url,{DATABASE_URL:url}),/synthetic/);
  assert.doesNotMatch(redactDiagnosticText(url,{}),/synthetic-password/);
 });
+
+
+test('hosted configuration fails closed instead of silently creating ephemeral SQLite',()=>{
+ assert.throws(()=>loadConfig({FASTFORWARD_REQUIRE_POSTGRES:'true'}),/requires DATABASE_URL/);
+ assert.equal(loadConfig({FASTFORWARD_REQUIRE_POSTGRES:'true',DATABASE_URL:'postgresql://test:synthetic@verified.neon.tech/db'}).databaseUrl.startsWith('postgresql:'),true);
+ assert.equal(loadConfig({}).databaseUrl,'');
+});

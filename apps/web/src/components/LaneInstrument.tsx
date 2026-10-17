@@ -84,8 +84,8 @@ export function LaneInstrument({ columns, orientation, title, revealed = columns
       column.agreement === 'agree' ? 'matches the policy' : column.agreement === 'mismatch' ? 'does not match the policy' : column.agreement === 'error' ? 'check error' : 'not observed yet'}.`).join(' ');
 
   const laneHead = horizontal
-    ? [{ x: 16, y: g.stripe, a: 'Stripe record', b: 'Billing state' }, { x: 16, y: g.access, a: 'App access', b: 'Private report' }]
-    : [{ x: g.stripe, y: 22, a: 'Stripe record', b: 'Billing state' }, { x: g.access, y: 22, a: 'App access', b: 'Private report' }];
+    ? [{ x: 16, y: g.stripe, a: 'Stripe says', b: 'Billing' }, { x: 16, y: g.access, a: 'The app did', b: 'Report access' }]
+    : [{ x: g.stripe, y: 22, a: 'Stripe says', b: 'Billing' }, { x: g.access, y: 22, a: 'The app did', b: 'Report access' }];
 
   return (
     <svg

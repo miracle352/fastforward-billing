@@ -18,8 +18,9 @@ function shutdown(code = 0) {
 }
 function launch(name: 'main' | 'worker-main') {
   if (stopping) return;
-  const entry = fileURLToPath(new URL(`./${name}.ts`, import.meta.url));
-  const child = spawn(process.execPath, ['--import', 'tsx', entry], { stdio: 'inherit', env: process.env, windowsHide: true });
+  const sourceMode = import.meta.url.endsWith('.ts');
+  const entry = fileURLToPath(new URL(`./${name}.${sourceMode ? 'ts' : 'js'}`, import.meta.url));
+  const child = spawn(process.execPath, [...(sourceMode ? ['--import','tsx'] : []), entry], { stdio: 'inherit', env: process.env, windowsHide: true });
   children.set(name, child);
   child.once('error', () => { process.stderr.write(`Fastforward ${name} process could not start.\n`); shutdown(1); });
   child.once('exit', () => {

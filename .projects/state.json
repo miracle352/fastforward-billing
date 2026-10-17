@@ -3,6 +3,9 @@
   "providers": {
     "createos": {
       "name": "createos"
+    },
+    "neon": {
+      "name": "Neon"
     }
   },
   "resources": {
@@ -10,6 +13,18 @@
       "livemode": true,
       "name": "carry-createos-free",
       "providerName": "createos",
+      "serviceId": "free"
+    },
+    "fastforward-data": {
+      "livemode": true,
+      "name": "fastforward-data",
+      "providerName": "Neon",
+      "serviceId": "postgres"
+    },
+    "fastforward-data-plan": {
+      "livemode": true,
+      "name": "fastforward-data-plan",
+      "providerName": "Neon",
       "serviceId": "free"
     },
     "fastforward-runtime": {

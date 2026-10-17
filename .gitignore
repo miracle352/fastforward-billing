@@ -13,6 +13,9 @@ playwright-report/
 test-results/
 .DS_Store
 
+
+*.tsbuildinfo
+
 .projects/cache
 .projects/vault
 .projects/state.test.json
@@ -20,5 +23,3 @@ test-results/
 .env
 .env.*
 !.env.example
-
-*.tsbuildinfo

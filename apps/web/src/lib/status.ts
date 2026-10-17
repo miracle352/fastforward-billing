@@ -37,14 +37,14 @@ export const STATUS_COPY: Record<RunStatus, { title: string; tone: 'neutral' | '
 
 export const SCENARIOS = {
   healthy_renewal: {
-    label: 'Healthy renewal',
-    line: 'A paying customer renews. They must keep their report.',
+    label: 'A customer renews',
+    line: 'Maya’s payment goes through. Maya should keep access.',
     customer: 'Maya',
     after: 'After renewal',
   },
   trial_payment_failure: {
-    label: 'Failed trial payment',
-    line: 'A trial ends and the card fails. Access must close.',
+    label: 'A trial payment fails',
+    line: 'Leo’s card is declined. Leo’s access should stop.',
     customer: 'Leo',
     after: 'After failed payment',
   },

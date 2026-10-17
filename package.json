@@ -19,7 +19,9 @@
     "test": "tsx --test apps/api/test/*.test.ts",
     "build": "npm run build --workspace @fastforward/web",
     "verify:integration": "npm run build && tsx scripts/verify-built-app.ts",
-    "providers:check": "node --env-file-if-exists=.env --import tsx apps/api/src/preflight-cli.ts"
+    "providers:check": "node --env-file-if-exists=.env --import tsx apps/api/src/preflight-cli.ts",
+    "build:server": "tsc -p tsconfig.server.json",
+    "start:compiled": "node --env-file-if-exists=.env dist/server/apps/api/src/supervisor.js"
   },
   "dependencies": {
     "@fastify/cookie": "11.1.3",

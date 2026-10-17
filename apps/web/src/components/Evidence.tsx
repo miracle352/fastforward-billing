@@ -1,4 +1,4 @@
-import { forwardRef, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   Check as CheckIcon, CircleDot, CircleSlash, Code, Download, FileText, LoaderCircle, Octagon, ShieldCheck, TriangleAlert, X,
@@ -13,18 +13,15 @@ import {
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-export const Evidence = forwardRef<HTMLHeadingElement, { ff: Fastforward }>(function Evidence({ ff }, headingRef) {
+/** The visitor's own run: status, stages, verdict, checks, activity and files. Server data only. */
+export function RunDetails({ ff }: { ff: Fastforward }) {
   const { run, events, feed, runs, selectRun } = ff;
   return (
-    <section id="evidence" className="section evidence" aria-labelledby="evidence-title">
-      <div className="section__intro">
-        <h2 id="evidence-title" ref={headingRef} tabIndex={-1} className="section__title">The working test</h2>
-        <p className="section__lede">Every step below is reported by the server as it happens. Nothing advances on a timer.</p>
-      </div>
-      {!run ? <EmptyEvidence /> : <RunView ff={ff} run={run} events={events} feed={feed} />}
+    <>
+      {run && <RunView ff={ff} run={run} events={events} feed={feed} />}
       {runs.length > 1 && (
         <div className="history">
-          <label htmlFor="run-history" className="history__label">Your earlier tests</label>
+          <label htmlFor="run-history">Your earlier tests</label>
           <select id="run-history" className="select" value={run?.id ?? ''} onChange={event => selectRun(event.target.value)}>
             {runs.map(item => (
               <option key={item.id} value={item.id}>{formatDateTime(item.createdAt)} — {STATUS_COPY[item.status].title}</option>
@@ -32,21 +29,7 @@ export const Evidence = forwardRef<HTMLHeadingElement, { ff: Fastforward }>(func
           </select>
         </div>
       )}
-    </section>
-  );
-});
-
-function EmptyEvidence() {
-  return (
-    <div className="empty">
-      <p className="empty__title">No test yet.</p>
-      <p>Press <strong>Test my billing</strong>. You will see each step here as the server reports it:</p>
-      <ol className="empty__steps">
-        <li>Real Stripe test customers are created and the sample app is started in a sandbox.</li>
-        <li>Their report access is checked before and after a renewal or a failed payment.</li>
-        <li>If access is wrong, a repair is written, run, and checked with brand new test customers.</li>
-      </ol>
-    </div>
+    </>
   );
 }
 
@@ -64,7 +47,7 @@ function RunView({ ff, run, events, feed }: { ff: Fastforward; run: RunRecord; e
   const current = stageOf(run.status);
 
   return (
-    <div className="run">
+    <div className="run" id="run">
       <div className="run__head">
         <div>
           <p className={`run__status tone-${status.tone}`}>
@@ -81,7 +64,7 @@ function RunView({ ff, run, events, feed }: { ff: Fastforward; run: RunRecord; e
         <div className="run__controls">
           <FeedState feed={feed} terminal={terminal} />
           {!terminal && run.status !== 'cancel_requested' && (
-            <button type="button" className="btn btn--quiet" onClick={ff.cancel} disabled={ff.cancelling}>
+            <button type="button" className="btn btn--ghost" onClick={ff.cancel} disabled={ff.cancelling}>
               {ff.cancelling ? <LoaderCircle size={16} className="spin" aria-hidden="true" /> : <Octagon size={16} aria-hidden="true" />}
               {ff.cancelling ? 'Asking to stop…' : 'Stop this test'}
             </button>
@@ -93,13 +76,13 @@ function RunView({ ff, run, events, feed }: { ff: Fastforward; run: RunRecord; e
       )}
       {ff.cancelError && <p className="notice notice--bad" role="alert">The stop request did not reach the server: {ff.cancelError.message} The test may still be running.</p>}
 
-      <ol className="stages" aria-label="Test stages">
+      <ol className="stages" data-ui aria-label="Test stages, as reported by the server">
         {STAGES.map(stage => {
           const state = stage.id === current ? 'current' : reached.has(stage.id) ? 'done' : 'todo';
           return (
-            <li key={stage.id} className={`stage-tick is-${state}`} aria-current={state === 'current' ? 'step' : undefined}>
-              <span className="stage-tick__mark" aria-hidden="true" />
-              <span className="stage-tick__label">{stage.id === 'result' && terminal ? status.title : stage.label}</span>
+            <li key={stage.id} className={`is-${state}`} aria-current={state === 'current' ? 'step' : undefined}>
+              <span className="tick" aria-hidden="true" />
+              <span>{stage.id === 'result' && terminal ? status.title : stage.label}</span>
               <span className="visually-hidden">{state === 'done' ? ' (reached)' : state === 'current' ? ' (current)' : ' (not reached)'}</span>
             </li>
           );
@@ -123,7 +106,7 @@ function StatusGlyph({ status }: { status: RunStatus }) {
   if (status === 'failed' || status === 'blocked') return <TriangleAlert size={22} aria-hidden="true" />;
   if (status === 'cancelled') return <CircleSlash size={22} aria-hidden="true" />;
   if (status === 'interrupted' || status === 'cancel_requested') return <TriangleAlert size={22} aria-hidden="true" />;
-  return <span className="dot dot--live" aria-hidden="true" />;
+  return <LoaderCircle size={22} className="spin" aria-hidden="true" />;
 }
 
 function FeedState({ feed, terminal }: { feed: Fastforward['feed']; terminal: boolean }) {
@@ -190,17 +173,17 @@ function Checks({ run }: { run: RunRecord }) {
       {groups.length === 0 ? (
         <p className="panel__empty">No checks observed yet. They appear after the first real report request.</p>
       ) : groups.map(([phase, checks]) => (
-        <div key={phase} className="checks-group">
-          <h4 className="checks-group__title">{phase === 'baseline' ? 'Original app' : phase === 'verification' ? 'Repaired app, fresh customers' : phase}</h4>
-          <ul className="checks">
+        <div key={phase} className="checks" data-ui>
+          <h4 className="group-title">{phase === 'baseline' ? 'Original app' : phase === 'verification' ? 'Repaired app, fresh customers' : phase}</h4>
+          <ul className="checks__list">
             {checks.map(check => (
-              <li key={check.id} className={`check is-${check.verdict}`}>
+              <li key={check.id} className={`check-row is-${check.verdict}`}>
                 <span className="check__verdict">
                   {check.verdict === 'passed' ? <CheckIcon size={16} aria-hidden="true" /> : check.verdict === 'pending' ? <CircleDot size={16} aria-hidden="true" /> : <X size={16} aria-hidden="true" />}
                   {verdictText(check)}
                 </span>
                 <span className="check__who">{check.customer}<span className="check__when"> · {check.checkpoint.split(':').slice(1).join(':').trim() || check.checkpoint}</span></span>
-                <dl className="check__facts">
+                <dl>
                   <div><dt>Stripe</dt><dd>{check.customer === 'Access boundary' ? 'Not applicable' : stripeLabel(check.stripeStatus)}</dd></div>
                   <div><dt>Expected</dt><dd>{expectedLabel(check.expectedAccess)}</dd></div>
                   <div><dt>Observed</dt><dd>{accessLabel(check.observedAccess)}</dd></div>
@@ -228,7 +211,7 @@ function Activity({ events }: { events: RunEventRecord[] }) {
       {events.length === 0 ? (
         <p className="panel__empty">Waiting for the first event from the server.</p>
       ) : (
-        <ol className="activity" tabIndex={0} aria-label="Activity reported by the server, oldest first">
+        <ol className="activity" data-ui tabIndex={0} aria-label="Activity reported by the server, oldest first">
           <AnimatePresence initial={false}>
             {events.map(event => (
               <motion.li
@@ -257,8 +240,8 @@ function Activity({ events }: { events: RunEventRecord[] }) {
 }
 
 const ARTIFACT_COPY: Record<ArtifactRecord['kind'], { label: string; icon: typeof FileText }> = {
-  source: { label: 'Generated handler source', icon: Code },
-  patch: { label: 'Repair patch', icon: FileText },
+  source: { label: 'Proposed repair: generated handler source', icon: Code },
+  patch: { label: 'The accepted repair, as a patch', icon: FileText },
   execution: { label: 'Sandbox execution record', icon: FileText },
   report: { label: 'Verification report', icon: ShieldCheck },
 };
@@ -281,12 +264,12 @@ function Artifacts({ run }: { run: RunRecord }) {
   };
 
   return (
-    <section className="panel panel--wide" aria-labelledby="files-title">
+    <section className="panel" aria-labelledby="files-title">
       <h3 id="files-title" className="panel__title">Files from this test</h3>
       {run.artifacts.length === 0 ? (
         <p className="panel__empty">No files yet. Files appear only when the server saves them: the generated source, the patch, the sandbox record and the report.</p>
       ) : (
-        <ul className="files">
+        <ul className="files" data-ui>
           {run.artifacts.map(artifact => {
             const meta = ARTIFACT_COPY[artifact.kind];
             const Icon = meta.icon;
@@ -298,11 +281,11 @@ function Artifacts({ run }: { run: RunRecord }) {
                   <span className="file__name">{artifact.name} · <span title={artifact.sha256}>sha256 {artifact.sha256.slice(0, 12)}…</span></span>
                 </span>
                 <span className="file__actions">
-                  <button type="button" className="btn btn--quiet btn--small" aria-expanded={open === artifact.id} aria-controls={`artifact-${artifact.id}`} onClick={() => void view(artifact)}>
+                  <button type="button" className="btn btn--ghost btn--sm" aria-expanded={open === artifact.id} aria-controls={`artifact-${artifact.id}`} onClick={() => void view(artifact)}>
                     {open === artifact.id ? 'Hide' : 'View'}
                   </button>
-                  <a className="btn btn--quiet btn--small" href={artifact.downloadUrl} download={artifact.name}>
-                    <Download size={14} aria-hidden="true" /> Download
+                  <a className="btn btn--ghost btn--sm" href={artifact.downloadUrl} download={artifact.name}>
+                    <Download size={16} aria-hidden="true" /> Download
                   </a>
                 </span>
                 {open === artifact.id && (

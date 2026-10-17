@@ -1,0 +1,68 @@
+{
+  "checkedAt": "2026-10-17T23:57:39.909Z",
+  "publicHostingVerified": false,
+  "candidateUrl": "https://production-fastforward-runtime.tyzo.nodeops.app",
+  "actualHealthStatus": 503,
+  "failedStage": "health",
+  "configuration": {
+    "runtime": "dockerfile",
+    "image": "node:24-bookworm-slim",
+    "compiledApiAndWorker": true,
+    "cpuMillicores": 500,
+    "memoryMB": 1024,
+    "replicas": 1,
+    "cloudAdmission": false,
+    "securityScanDisabledWithUserApproval": true,
+    "buildAI": false,
+    "runtimeSecretsReadbackMatched": true,
+    "buildVariablesEmpty": true,
+    "sourceFiles": 55
+  },
+  "storage": {
+    "provider": "existing approved Neon Free",
+    "realDatabaseVerification": true,
+    "sqliteCloudMountVerified": false,
+    "sqliteFallbackDisabled": true,
+    "historicalArtifactHashesVerified": 16,
+    "lastObservedDatabaseBytes": 8290304,
+    "cloudReportAccessVerified": false,
+    "cloudReplacementPersistenceVerified": false
+  },
+  "validation": {
+    "backendTests": 47,
+    "typecheck": "passed",
+    "compiledBuild": "passed",
+    "compiledApiAndWorkerStartupAgainstNeon": "passed locally",
+    "productionFrontendAPIIntegration": "passed locally"
+  },
+  "credits": {
+    "observedAmount": 395.0357146033739,
+    "usdPerCredit": 0.01,
+    "planAmount": 0,
+    "cpuRamUsdPerDayEstimate": 0.7188063552,
+    "paidPlanPurchased": false,
+    "topUpPurchased": false,
+    "automaticGnodeConversionDisabled": false
+  },
+  "observations": {
+    "successfulBuilds": 5,
+    "successfulPublicHealthChecks": 0,
+    "runtimeStartupMarkerObserved": false,
+    "olderPreviewsSlept": true,
+    "localDemo": "http://127.0.0.1:3001",
+    "localProvidersReady": 4,
+    "localCompiledWorkerObserved": true
+  },
+  "usage": {
+    "agentInitiatedRepairRuns": 0,
+    "modelCalls": 0,
+    "generatedSandboxCreations": 0
+  },
+  "remaining": [
+    "Actual public HTTP200 and runtime startup",
+    "Public ownership/report access checks",
+    "Persistence across actual cloud restart/replacement",
+    "Exact exposed integration token revocation remains a separate unresolved incident",
+    "No-top-up cutoff/automatic GNODE conversion semantics unverified"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "uniqueName": "fastforward-runtime",
+  "displayName": "Fastforward",
+  "type": "upload",
+  "enabledSecurityScan": false,
+  "settings": {
+    "hasDockerfile": true,
+    "runtime": "dockerfile",
+    "directoryPath": ".",
+    "port": 3000,
+    "useBuildAI": false,
+    "buildVars": {}
+  },
+  "production": {
+    "resources": {
+      "cpu": 500,
+      "memory": 1024,
+      "replicas": 1
+    },
+    "database": "existing approved Neon Free fastforward-data",
+    "runtimeSecretNames": [
+      "DATABASE_URL",
+      "STRIPE_SECRET_KEY",
+      "STRIPE_READONLY_KEY",
+      "CREATEOS_SANDBOX_API_KEY",
+      "GROQ_API_KEY",
+      "FASTFORWARD_SESSION_SECRET"
+    ],
+    "requiredRuntimeSettings": {
+      "FASTFORWARD_REQUIRE_POSTGRES": "true",
+      "MAX_MODEL_CALLS_PER_RUN": "3",
+      "MODEL_MAX_OUTPUT_TOKENS": "3000",
+      "MAX_RUNS_PER_DAY": "6",
+      "RUN_TIMEOUT_SECONDS": "600",
+      "HOST": "0.0.0.0",
+      "PORT": "3000",
+      "APP_ORIGIN": "https://production-fastforward-runtime.tyzo.nodeops.app",
+      "FASTFORWARD_ACCEPT_RUNS": "false"
+    },
+    "initialAdmission": "false",
+    "startup": "Docker CMD npm run start:compiled"
+  }
+}

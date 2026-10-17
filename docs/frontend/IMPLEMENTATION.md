@@ -1,5 +1,137 @@
 # Frontend implementation — Fastforward
 
+## Round 3: product redesign after user review (current)
+
+User feedback on round 2:
+- The Bodoni font and the amber/sage/paper colours were rejected, and the colours did not work together.
+- The FAQ should open and close.
+- "Run it yourself" and the receipt panel were weak.
+- The page read as a hackathon demo instead of a product.
+- The footer looked poor.
+- Everything must be easy for a 60-year-old to understand, with visuals built in code.
+
+**What changed**
+- **Type:** Geist for all text, with Geist Mono for codes and statuses only. Google Fonts, SIL OFL. Body text is 18px.
+- **Colour:** one system. Near-black surfaces, one green for action and "correct", red only for "something is wrong", and amber only for "waiting" chips. The amber, sage and paper fields are gone.
+- **Hero:**
+  - "Payment failed. / Access granted.", with the second line in red.
+  - A one-sentence plain explanation, then "Test my billing" and "See how it works".
+  - A coded product monitor that replays the recorded 17 Oct test with CSS-only timing: Stripe's events beside the app's answers, then a red "Mismatch found" and a green "Repair verified". It is labelled "Example" and "Example from a recorded test".
+- **Explorer:** four big tap-friendly moment cards with icons and Agree/Disagree chips. "Before the fix / After the fix" toggle. "Stripe says" and "The app" cards joined by a solid or broken link.
+- **How it works:** four numbered step cards with icons and recorded timings, plus a to-scale bar.
+- **Bug section:** a code window with the faulty lines lit, and three plain cards: what went wrong, how it was fixed, who says it works.
+- **Run a real billing test:** one app window in three numbered steps.
+  1. Choose what to test, with large checkbox cards.
+  2. Start the test. A visible readiness checklist covers Stripe, the read-only check, the sandbox and the repair writer, with "Ready"/"Not ready" per service, then the big button.
+  3. Watch the results, with the live lanes relabelled "Stripe says / The app did".
+  The connected behaviour, uncertain-start reconciliation and Idempotency-Key are unchanged.
+- **Proof:** three stat cards from the recorded browser run.
+- **FAQ:** an accessible accordion built on native `<details>`, with large rows and a +/× toggle. The first question starts open.
+- **Closing call to action:** a card with a coded two-track drawing (billing, plus access breaking and rejoining in a check).
+- **Footer:**
+  - A live service-status strip driven by `/api/readiness`.
+  - Brand line and CTA, product and resource links.
+  - The two-track motif and a large quiet wordmark.
+- **Product framing:** "hackathon", "no real money" and the "Sample app · Stripe test mode" header label are gone. AGENTS.md labelling is kept, in calmer product language:
+  - The hero note: "The live demo checks our own sample subscription app with Stripe test customers. Your real billing and customers are never touched."
+  - Step 2: "…Stripe test customers and simulated dates. No real money moves."
+  - The FAQ, the footer line, and the monitor's "Example" label.
+
+**Checks performed:**
+- `npx tsc` passes, and `npm run build` passes: 525.9 kB JS (162.9 kB gzip) and 32.8 kB CSS.
+- `dist` was rebuilt, and :3001 returned 200.
+- Screenshots at 1440 of every section and at 390 of the hero, explorer and test app, with animations finished via `getAnimations().finish()` because the pane was hidden.
+- No horizontal overflow at 390 and 320 (`scrollWidth == clientWidth`).
+- Fonts loaded: Geist and Geist Mono.
+
+**Fixed during review:**
+- The hero headline wrapped to three lines.
+- The monitor's JS timers stalled in a hidden tab, so the replay is now CSS keyframes.
+- The outlined footer wordmark showed overlapping font contours; it is now solid.
+- The phone toggle wrapped onto two lines.
+- The brand name was hidden at 390.
+
+**Not done:** a live run from this design, a reduced-motion emulation (code review only), a screen reader pass, and a 768 or 200% zoom recheck for this round.
+
+> **Round 2 (redesign), 2026-10-17 late evening, is the previous, superseded design. The round 1 notes after it describe the superseded glass-era design and its checks.** Direction, audit and references: `docs/frontend/DESIGN-DIRECTION.md`.
+
+## Round 2: redesign with design-taste-frontend
+
+### What changed
+
+- **Direction:** dealt by `design-taste-frontend` as "Type and nothing else" (seed 738392838). The hero is "Payment failed. / Access granted." across two flat fields; the seam is the disagreement. There is no glass, no decorative gradient, no shadows at rest, no pills and no tiny tracked labels. Buttons are square and solid. Type is Bodoni Moda (display) with Jost (text). The page moves colour by chapter: black, amber, black, paper, black, surface, sage, black, amber, black.
+- **Live thing:** the evidence explorer (`components/Explorer.tsx`). It offers four recorded moments times original or repaired app. Values come from `src/lib/recorded.ts`, copied from the committed public receipts and the public sample source. Every view says "Recorded 17 October 2026, local test run. Not your run."
+- **How it works:** `Story.tsx` `HowItWorks`. The four stages are drawn as one bar sized by the recorded durations, labelled as an illustration. It fills once on viewport entry and rests complete. An 8-second fallback settles it if the viewport observer never fires; under reduced motion it is static.
+- **The working test:** the console, live lanes and run details are restyled as product-interface fragments (`data-ui`). Session, CSRF, ownership, ordered polling, saved history, cancellation and artifact view/download are all preserved.
+- **Behaviour fixes:**
+  - Boot no longer waits for the slow readiness probe. The page shows "Checking that Stripe, the sandbox and the model are ready…" instead of "Connecting…".
+  - Blockers are translated per service into plain language. The server's raw text sits behind "What the server said".
+  - **Uncertain start (Codex request):** a lost POST reply no longer claims "Nothing ran". The page reconciles with the visitor's run history. It selects a newly appeared run ("Your test did start…"). Otherwise it says no new test is in the history, so retrying is safe, or that the history could not be checked and the visitor should reload first.
+  - `POST /api/runs` now sends an `Idempotency-Key`: one per deliberate start, reused only when retrying an uncertain start with the same scenarios. This follows Codex's 22:45 note; servers without it ignore the header.
+- **Removed:** `components/HowItWorks.tsx` (old lane illustration) and `components/Explainer.tsx`. Their content now lives in `Story.tsx` (FAQ, scope).
+- **Added:** `components/Hero.tsx`, `Explorer.tsx`, `Story.tsx`, `Reveal.tsx`, `lib/recorded.ts`, `docs/frontend/DESIGN-DIRECTION.md`.
+- **Changed:** `App.tsx`, `main.tsx`, `styles.css` (rewritten), `Console.tsx`, `Stage.tsx`, `Evidence.tsx`, `Wordmark.tsx`, `lib/lanes.ts`, `api/client.ts`, `api/useFastforward.ts`, `preview/Preview.tsx`, `index.html`, `public/favicon.svg`.
+
+### Licences and external resources
+
+- **Fonts:** Bodoni Moda and Jost, both SIL Open Font License 1.1. They load from Google Fonts by `<link>` in `index.html`, so the visitor's browser contacts fonts.googleapis.com and fonts.gstatic.com. Fallbacks are Didot/Georgia and system sans. They are credited in the footer.
+- **Icons:** lucide-react (ISC, already supplied).
+- **Content:** no images, photographs, emoji or third-party assets; visuals are CSS/SVG and product-UI fragments. React Bits, Motion Primitives and Awesome AI Motion were not used. Motion comes from the supplied `motion` library plus CSS.
+
+### Checks actually performed (round 2)
+
+- **Build:** `npx tsc -p tsconfig.json` passes, and `npm run build` in `apps/web` passes.
+  - Output: 512.5 kB JS (159.9 kB gzip) and 31.4 kB CSS. Vite warns that one chunk is over 500 kB.
+  - Fixture strings are absent from the production bundle (`grep preview-run` returned 0).
+- **dist incident:** I briefly deleted `apps/web/dist` after a build check, although Codex had asked to keep it. I rebuilt it straight away. `http://127.0.0.1:3001/` and its JS/CSS assets returned HTTP 200 afterwards, and that preview now serves **this redesign**.
+- **Connected (Vite :5174 → API :3000):** session, runs and readiness returned 200, and readiness showed "Ready". No run was started, so no live allowance was spent in round 2.
+- **Screenshots inspected:**
+
+  | Page | Widths |
+  | --- | --- |
+  | Connected page | 1440, 768, 390, 320, and 720×450 (equivalent to 1440 at 200% zoom) |
+  | Preview states `failed` and `passed` | 390 and 1440 |
+
+  The browser pane was hidden, which pauses CSS animations. Before capture, animations were finished with `document.getAnimations().forEach(a => a.finish())`. This is an inspection step only; the page is unchanged.
+- **Measured:**
+  - `scrollWidth == clientWidth` at 320, 390 and 720.
+  - Every heading is two lines or fewer at 320 and 720.
+  - At 720×450 the headline top (108px) clears the header (84px).
+- **Keyboard:** the order is skip link, wordmark, three nav links and "Test my billing", then the explorer version toggle and moments. The moments form one roving radio stop: ArrowDown moved the selection to "Maya renews" with `aria-checked=true`. Then come the code excerpt (scrollable), the scenario checkboxes, "Test my billing", Connection details, the closing button and the footer links. Focus outlines are visible: sage on dark, black on coloured fields.
+- **Reduced motion:** code review only; the pane cannot emulate the media query.
+  - CSS keyframes run only under `prefers-reduced-motion: no-preference`.
+  - `Reveal`, the stage bar, the explorer and the lanes switch to static when `useReducedMotion()` is true.
+  - The global reduce rule removes transitions and loops.
+- **Not run:** Taste's `lint.mjs` and `inspect.mjs` (absent from the installed skill), Lighthouse, a screen reader, and a live run from the redesigned page.
+
+### Problems found in screenshots and fixed (three rounds)
+
+1. **Round 1:**
+   - Stage-bar notes were squeezed under narrow segments; they are now four equal columns with colour keys.
+   - The hero sentence wrapped to four lines and is now wider.
+   - The code excerpt scrolled sideways; the long line is shortened and the caption says so.
+2. **Round 2:**
+   - The phone headline was small and left a third of the screen empty; it is now 13vw with the seam at 42svh.
+   - The "Test my billing" button wrapped at 320; it is now nowrap and the mark is hidden under 360.
+   - The closing sentence ran to three lines at 320 and is now two.
+   - Explorer choices sat below the answer on phones and now come first.
+   - The 768 stage segments clipped "seconds" and now have a minimum width.
+3. **Round 3:**
+   - The headline crowded the header at 200% zoom; the seam is now never higher than header + headline.
+   - The explorer heading waited on an exit animation; it now updates immediately.
+   - The activity column was short beside the long checks list and is now sticky on desktop.
+
+### Remaining limitations
+
+- No live run has been started from the redesigned page. Codex's earlier browser-run evidence covers the round 1 UI with the same API code paths.
+- Explorer and proof figures are recorded evidence from 17 Oct, labelled as such, not live data.
+- Fonts depend on Google Fonts at runtime. Self-hosting would need a dependency or asset decision; see REQUESTS.md.
+- Public hosting remains blocked on the backend side (see BUILD-STATE.md).
+
+---
+
+# Round 1 notes (superseded design)
+
 Written by Claude Code on 2026-10-17 (Lagos evening). Everything here is uncommitted for Codex to integrate. Only `apps/web/` and `docs/frontend/` were edited.
 
 ## Design reading

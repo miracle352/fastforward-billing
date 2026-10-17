@@ -6,7 +6,7 @@ Fastforward is a new CreateOS × Stripe Projects hackathon implementation. It ex
 
 ## Current evidence boundary
 
-The backend has completed one real repair run: the baseline exposed an access mismatch, one model call produced a handler, CreateOS executed it, and all seven fresh-customer checks passed. Cleanup was confirmed. See [the redacted receipt](docs/evidence/2026-10-17-live-repair.json) and BUILD-STATE.md. A second, browser-started run through the production frontend also passed all seven fresh-customer checks, with three bounded Groq calls and confirmed cleanup. Report download integrity and local API restart persistence were verified; see [the browser receipt](docs/evidence/2026-10-17-browser-integration.json). Persistent public hosting remains blocked; see [deployment findings](docs/DEPLOYMENT.md). No claim is made about arbitrary applications, production safety, all billing paths, or a guaranteed completion time.
+The backend has three recorded successful real repair runs. In the first, the baseline exposed an access mismatch, one model call produced a handler, CreateOS executed it, and all seven fresh-customer checks passed. Cleanup was confirmed. See [the redacted receipt](docs/evidence/2026-10-17-live-repair.json) and BUILD-STATE.md. A second, browser-started run through the production frontend also passed all seven fresh-customer checks, with three bounded Groq calls and confirmed cleanup. Report download integrity and local API restart persistence were verified; see [the browser receipt](docs/evidence/2026-10-17-browser-integration.json). Persistent public hosting remains blocked; see [deployment findings](docs/DEPLOYMENT.md). No claim is made about arbitrary applications, production safety, all billing paths, or a guaranteed completion time.
 
 Only synthetic customers, Stripe TEST resources and simulated billing time are permitted. The sample policy allows access for active/trialing subscriptions and deliberately has no past-due grace period; that is a reviewed sample policy, not a universal Stripe rule.
 
@@ -52,13 +52,15 @@ The evaluator/policy lives outside the generated-code VM. It tests authenticated
 
 CreateOS networking uses an explicit nonempty destination allowlist before unfamiliar code runs. Source, execution receipts, observations and artifacts are retained by the trusted controller. A fresh Stripe clock and fresh customer identities are used for verification. Webhook HTTP 200 alone is never a passing result.
 
-Jobs use durable SQLite storage, atomic claims, fenced leases and a separate persistent worker. The service must have an explicitly persistent data volume; an ephemeral filesystem is insufficient for durable hosted operation. A browser disconnect does not itself cancel a worker job. Cancellation remains requested until resource cleanup is observed.
+Jobs use local SQLite or the approved Neon Postgres store, atomic claims, fenced leases and a separate persistent worker. Hosted Docker startup requires Postgres and cannot silently fall back to an ephemeral SQLite database. A browser disconnect does not itself cancel a worker job. Cancellation remains requested until resource cleanup is observed.
 
 ## Hosting
 
-The production process starts API and worker through npm start and serves compiled Vite output on the API origin. Configure HOST=0.0.0.0, PORT, APP_ORIGIN to the real HTTPS origin, and FASTFORWARD_DATA_DIR to the mounted persistent volume. Do not scale this SQLite deployment to multiple replicas.
+The Docker image compiles the trusted API and worker, starts both through npm run start:compiled, and serves compiled Vite output from the same API origin. Local development keeps npm start and SQLite support. Hosted records use the already-approved Neon Free database; CreateOS does not provide a verified SQLite-compatible deployment volume.
 
-Before claiming hosted completion, verify persistent storage, outbound provider access, worker restart recovery, browser-disconnect operation, anonymous/session boundaries, cleanup and the real public URL. The approved free resource and available project quota were verified; current deployment credits and an explicitly persistent SQLite-compatible volume remain unverified. See docs/DEPLOYMENT.md.
+The concrete configuration is in deploy/createos.json. The provider allocated https://production-fastforward-runtime.tyzo.nodeops.app, but actual health checks currently return503 despite provider-reported successful deployment. Public hosting and cloud restart persistence are **not verified**. Do not present this as a live passing demo. See docs/DEPLOYMENT.md for actual storage, credit, cost and failure evidence.
+
+Validated:47 backend regressions, root typecheck, compiled API/worker startup against Neon and the built frontend/API integration. Existing real repair evidence is preserved without consuming another generation or sandbox allowance.
 
 ## Sponsors and event submission
 

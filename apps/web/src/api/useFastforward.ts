@@ -14,6 +14,7 @@ import { isTerminal } from '../lib/status';
 
 export type Connection = 'connecting' | 'online' | 'offline';
 export type Feed = 'idle' | 'live' | 'reconnecting';
+export type StartOutcome = null | 'checking' | 'recovered' | 'not-found' | 'unknown';
 
 const POLL_MS = 1800;
 const MAX_BACKOFF_MS = 15000;
@@ -39,11 +40,15 @@ export function useFastforward() {
   const [feed, setFeed] = useState<Feed>('idle');
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<ApiError | null>(null);
+  /** Only set when the start request's reply was lost: what reconciling with history found. */
+  const [startOutcome, setStartOutcome] = useState<StartOutcome>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<ApiError | null>(null);
   const [bootAttempt, setBootAttempt] = useState(0);
 
   const startInFlight = useRef(false);
+  /** Kept only while a start's outcome is uncertain, so a retry repeats the same request. */
+  const pendingStart = useRef<{ key: string; scenarios: string } | null>(null);
   const cancelInFlight = useRef(false);
   const runId = run?.id ?? null;
 
@@ -56,23 +61,30 @@ export function useFastforward() {
     });
   }, []);
 
-  // Boot: session → readiness + this visitor's runs. Retries quietly while the server is unreachable.
+  // Boot: session → this visitor's runs. Readiness is fetched separately because its provider
+  // probes can be slow; the page must not look disconnected while they run.
   useEffect(() => {
     const controller = new AbortController();
     let retry: number | undefined;
     (async () => {
       try {
         await getSession(controller.signal);
-        const [ready, list] = await Promise.all([
-          getReadiness(controller.signal).catch((caught: unknown) => { if (isAbort(caught)) throw caught; setReadinessError(asApiError(caught)); return null; }),
-          listRuns(controller.signal),
-        ]);
+        const list = await listRuns(controller.signal);
         setConnection('online'); setConnectionError(null);
-        if (ready) { setReadiness(ready); setReadinessError(null); }
         setRuns(list);
-        const preferred = ready?.activeRunId ?? recall();
-        const chosen = list.find(item => item.id === preferred) ?? list[0] ?? null;
+        const remembered = recall();
+        const chosen = list.find(item => item.id === remembered) ?? list.find(item => !isTerminal(item.status)) ?? list[0] ?? null;
         setRun(current => current ?? chosen);
+        setCheckingReadiness(true);
+        try {
+          const ready = await getReadiness(controller.signal);
+          setReadiness(ready); setReadinessError(null);
+        } catch (caught) {
+          if (isAbort(caught)) return;
+          setReadinessError(asApiError(caught));
+        } finally {
+          setCheckingReadiness(false);
+        }
       } catch (caught) {
         if (isAbort(caught)) return;
         setConnection('offline'); setConnectionError(asApiError(caught));
@@ -145,14 +157,39 @@ export function useFastforward() {
   const start = useCallback(async (scenarios: Scenario[]): Promise<RunRecord | null> => {
     if (startInFlight.current || scenarios.length === 0) return null;
     startInFlight.current = true;
-    setStarting(true); setStartError(null); setCancelError(null);
+    setStarting(true); setStartError(null); setCancelError(null); setStartOutcome(null);
     try {
-      const created = await createRun(scenarios);
+      const fingerprint = scenarios.join(',');
+      const key = pendingStart.current?.scenarios === fingerprint ? pendingStart.current.key : crypto.randomUUID();
+      pendingStart.current = { key, scenarios: fingerprint };
+      const created = await createRun(scenarios, key);
+      pendingStart.current = null;
       setRuns(list => [created, ...list.filter(item => item.id !== created.id)]);
       setRun(created);
       return created;
     } catch (caught) {
       const error = asApiError(caught);
+      if (error.kind === 'network' || error.kind === 'unavailable') {
+        // The request may have reached the server even though its reply did not reach us.
+        // Reconcile with this visitor's history before saying anything about what ran.
+        setStartOutcome('checking');
+        const known = new Set(runs.map(item => item.id));
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            const list = await listRuns();
+            setRuns(list); setConnection('online');
+            const appeared = list.find(item => !known.has(item.id));
+            if (appeared) { pendingStart.current = null; setRun(appeared); setStartOutcome('recovered'); return appeared; }
+            setStartOutcome('not-found'); setStartError(error);
+            return null;
+          } catch {
+            await new Promise(resolve => window.setTimeout(resolve, 1500 * (attempt + 1)));
+          }
+        }
+        setStartOutcome('unknown'); setStartError(error);
+        return null;
+      }
+      pendingStart.current = null;
       setStartError(error);
       if (error.status === 409 || error.status === 503) {
         const ready = await refreshReadiness();
@@ -184,7 +221,7 @@ export function useFastforward() {
 
   const selectRun = useCallback((id: string) => {
     setRun(runs.find(item => item.id === id) ?? null);
-    setStartError(null); setCancelError(null);
+    setStartError(null); setCancelError(null); setStartOutcome(null);
   }, [runs]);
 
   const retryConnection = useCallback(() => setBootAttempt(n => n + 1), []);
@@ -193,7 +230,7 @@ export function useFastforward() {
     connection, connectionError, retryConnection,
     readiness, readinessError, checkingReadiness, refreshReadiness,
     runs, run, events, feed, selectRun,
-    start, starting, startError,
+    start, starting, startError, startOutcome,
     cancel, cancelling, cancelError,
   };
 }

@@ -1,172 +1,163 @@
-import { ArrowRight, LoaderCircle, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react';
+import { forwardRef } from 'react';
+import { ArrowRight, CircleCheck, CircleX, LoaderCircle, RefreshCw, ShieldCheck, TriangleAlert, UserCheck, UserX, WifiOff } from 'lucide-react';
 import type { ProviderReadinessRecord, Scenario } from '@fastforward/contracts';
 import type { Fastforward } from '../api/useFastforward';
 import type { ApiError } from '../api/client';
-import { SCENARIOS, formatDateTime, isTerminal } from '../lib/status';
+import { SCENARIOS, isTerminal } from '../lib/status';
 
-const PROVIDER_NAMES: Record<ProviderReadinessRecord['id'], string> = {
-  stripe: 'Stripe test mode',
-  stripe_readonly: 'Stripe read-only test key',
-  createos: 'CreateOS sandbox',
-  groq: 'Repair model (Groq)',
-};
+/** The services a test needs, in words anyone can follow. Order is the order they are used. */
+const SERVICES: { id: ProviderReadinessRecord['id']; name: string }[] = [
+  { id: 'stripe', name: 'Stripe test customers' },
+  { id: 'stripe_readonly', name: 'Read-only Stripe check' },
+  { id: 'createos', name: 'Private sandbox (CreateOS)' },
+  { id: 'groq', name: 'Repair writer (AI model)' },
+];
 
-const PROVIDER_STATUS: Record<ProviderReadinessRecord['status'], string> = {
-  ready: 'Ready', unchecked: 'Not checked yet', unconfigured: 'Not connected', error: 'Problem',
-};
+const SCENARIO_ICONS: Record<Scenario, typeof UserX> = { healthy_renewal: UserCheck, trial_payment_failure: UserX };
 
-/** Plain-language copy for a refused start. The server's own message follows it. */
 function startProblem(error: ApiError): string {
-  if (error.kind === 'network' || error.kind === 'unavailable') return 'The test did not start because this page lost contact with the server. Nothing ran.';
   switch (error.code) {
-    case 'BUSY': return 'Another test is using the shared sandbox right now. Try again once it finishes.';
-    case 'CLEANUP_PENDING': return 'The previous test environment is still being cleaned up. Try again in a few minutes.';
-    case 'OWNER_LIMIT':
-    case 'GLOBAL_LIMIT': return 'Today’s demonstration allowance has been used. Saved results stay available below.';
-    case 'SETUP_NEEDED': return 'The test services are not all ready, so nothing was started.';
-    case 'INPUT_INVALID': return 'Choose at least one scenario.';
-    case 'CSRF_INVALID': return 'Your session expired. Refresh the page and try again. Nothing ran.';
-    case 'ORIGIN_INVALID': return 'The server only accepts tests started from its own web address, so nothing ran. Open Fastforward from its main address and try again.';
+    case 'BUSY': return 'Someone else is running a test right now. Tests run one at a time, so please try again in a couple of minutes.';
+    case 'CLEANUP_PENDING': return 'The previous test is still tidying up. Please try again in a few minutes.';
+    case 'OWNER_LIMIT': return 'You’ve used today’s tests. Your saved results are still below.';
+    case 'GLOBAL_LIMIT': return 'Today’s demo tests have all been used. Saved results are still below.';
+    case 'SETUP_NEEDED': return 'The server isn’t accepting new tests right now, so nothing was started.';
+    case 'ADMISSION_PAUSED': return 'New tests are paused right now, so nothing was started. Saved results stay available.';
+    case 'INPUT_INVALID': return 'Choose at least one thing to test.';
+    case 'CSRF_INVALID': return 'Your session expired. Please refresh the page and try again. Nothing was started.';
+    case 'ORIGIN_INVALID': return 'Tests can only be started from Fastforward’s own address. Nothing was started.';
     default: return error.message;
   }
 }
 
-type Props = {
-  ff: Fastforward;
-  scenarios: Scenario[];
-  onScenarios: (next: Scenario[]) => void;
-  onStart: () => void;
-};
+type Props = { ff: Fastforward; scenarios: Scenario[]; onScenarios: (next: Scenario[]) => void; onStart: () => void };
 
-export function Console({ ff, scenarios, onScenarios, onStart }: Props) {
-  const { connection, readiness, readinessError, run, starting, startError } = ff;
+export const Console = forwardRef<HTMLButtonElement, Props>(function Console({ ff, scenarios, onScenarios, onStart }, buttonRef) {
+  const { connection, readiness, run, starting, startError, startOutcome } = ff;
   const running = run !== null && !isTerminal(run.status);
   const ready = connection === 'online' && readiness?.ready === true;
   const disabled = !ready || running || starting || scenarios.length === 0;
 
   const toggle = (id: Scenario) =>
-    onScenarios(scenarios.includes(id) ? scenarios.filter(item => item !== id) : [...scenarios, id].sort() as Scenario[]);
+    onScenarios(scenarios.includes(id) ? scenarios.filter(item => item !== id) : ([...scenarios, id].sort() as Scenario[]));
 
-  let buttonLabel = 'Test my billing';
-  if (starting) buttonLabel = 'Starting the test…';
-  else if (running) buttonLabel = 'Test in progress';
+  let label = 'Test my billing';
+  if (startOutcome === 'checking') label = 'Checking whether it started…';
+  else if (starting) label = 'Starting…';
+  else if (running) label = 'Your test is running';
 
   return (
-    <div className="console">
-      <fieldset className="scenarios" disabled={running || starting}>
-        <legend className="scenarios__legend">Scenarios to run</legend>
-        {(Object.keys(SCENARIOS) as Scenario[]).map(id => (
-          <label key={id} className="scenario">
-            <input type="checkbox" checked={scenarios.includes(id)} onChange={() => toggle(id)} />
-            <span className="scenario__box" aria-hidden="true">
-              <svg viewBox="0 0 16 16" width="16" height="16"><path d="M3.5 8.5l3 3 6-7" /></svg>
-            </span>
-            <span className="scenario__text">
-              <span className="scenario__label">{SCENARIOS[id].label}</span>
-              <span className="scenario__line">{SCENARIOS[id].line}</span>
-            </span>
-          </label>
-        ))}
-        {scenarios.length === 0 && <p className="field-note" role="status">Choose at least one scenario.</p>}
-      </fieldset>
-
-      <div className="console__action">
-        <button type="button" className="btn btn--primary" disabled={disabled} aria-describedby="readiness-line" onClick={onStart}>
-          {starting ? <LoaderCircle className="spin" aria-hidden="true" size={20} /> : null}
-          <span>{buttonLabel}</span>
-          {!starting && !running ? <ArrowRight aria-hidden="true" size={20} className="btn__arrow" /> : null}
-        </button>
-        {running && <a className="link" href="#evidence">Follow it live</a>}
+    <div className="app__side">
+      <div className="step">
+        <div className="step__head"><span className="step__num">1</span><h3 className="step__title">Choose what to test</h3></div>
+        <fieldset className="scenarios" disabled={running || starting}>
+          <legend className="visually-hidden">What to test</legend>
+          {(Object.keys(SCENARIOS) as Scenario[]).map(id => {
+            const Icon = SCENARIO_ICONS[id];
+            return (
+              <label key={id} className="scenario">
+                <input type="checkbox" checked={scenarios.includes(id)} onChange={() => toggle(id)} />
+                <span className="scenario__icon" aria-hidden="true"><Icon size={22} /></span>
+                <span>
+                  <span className="scenario__label">{SCENARIOS[id].label}</span>
+                  <span className="scenario__line">{SCENARIOS[id].line}</span>
+                </span>
+                <span className="check" aria-hidden="true">
+                  <svg viewBox="0 0 16 16" width="16" height="16"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </span>
+              </label>
+            );
+          })}
+          {scenarios.length === 0 && <p className="muted" role="status">Choose at least one.</p>}
+        </fieldset>
       </div>
 
-      <ReadinessLine ff={ff} />
-
-      {startError && (
-        <div className="notice notice--bad" role="alert">
-          <TriangleAlert aria-hidden="true" size={18} />
-          <div>
-            <p>{startProblem(startError)}</p>
-            {startError.blockers.length > 0 && (
-              <ul className="notice__list">{startError.blockers.map(item => <li key={item}>{item}</li>)}</ul>
-            )}
-          </div>
+      <div className="step">
+        <div className="step__head"><span className="step__num">2</span><h3 className="step__title">Start the test</h3></div>
+        <Services ff={ff} />
+        <div className="start-row">
+          <button ref={buttonRef} type="button" className="btn btn--lg" disabled={disabled} aria-describedby="readiness-line" onClick={onStart}>
+            {(starting || startOutcome === 'checking') && <LoaderCircle className="spin" aria-hidden="true" size={20} />}
+            <span>{label}</span>
+            {!starting && !running && <ArrowRight aria-hidden="true" size={20} className="arrow" />}
+          </button>
+          {running && <a className="link-btn" href="#run">Follow your test below</a>}
+          <p className="reassure"><ShieldCheck size={18} aria-hidden="true" />Runs on our demo subscription app with Stripe test customers and simulated dates. No real money moves.</p>
         </div>
-      )}
 
-      {readiness && readiness.providers.length > 0 && (
-        <details className="details">
-          <summary>Connection details</summary>
-          <ul className="providers">
-            {readiness.providers.map(provider => (
-              <li key={provider.id} className={`provider is-${provider.status}`}>
-                <span className="provider__name">{PROVIDER_NAMES[provider.id]}</span>
-                <span className="provider__status">{PROVIDER_STATUS[provider.status]}</span>
-                <span className="provider__message">{provider.message}</span>
-                {provider.checkedAt && <span className="provider__time">Checked {formatDateTime(provider.checkedAt)}</span>}
-              </li>
-            ))}
-          </ul>
-          <p className="details__note">These checks are run by the server. You never need to enter a key or password here.</p>
-        </details>
-      )}
-      {readinessError && !readiness && <p className="field-note">Readiness could not be checked: {readinessError.message}</p>}
+        {startOutcome === 'recovered' && (
+          <div className="notice notice--good" role="status"><CircleCheck aria-hidden="true" size={20} />
+            <div><p>Your test did start. The reply got lost on the way back, so we found it in your history.</p></div></div>
+        )}
+        {startError && (startOutcome === 'not-found' || startOutcome === 'unknown') && (
+          <div className="notice notice--warn" role="alert"><TriangleAlert aria-hidden="true" size={20} />
+            <div>{startOutcome === 'not-found'
+              ? <p>The connection dropped before we heard back. No new test appears in your history, so it’s safe to try again.</p>
+              : <p>The connection dropped before we heard back and we couldn’t check your history yet. A test may have started, so please reload the page before trying again.</p>}</div></div>
+        )}
+        {startError && !startOutcome && (
+          <div className="notice notice--bad" role="alert"><TriangleAlert aria-hidden="true" size={20} />
+            <div>
+              <p>{startProblem(startError)}</p>
+              {startError.blockers.length > 0 && (
+                <ul className="notice__list notice__list--open">{startError.blockers.map(item => <li key={item}>{item}</li>)}</ul>
+              )}
+            </div></div>
+        )}
+      </div>
     </div>
   );
-}
+});
 
-function ReadinessLine({ ff }: { ff: Fastforward }) {
-  const { connection, readiness, run, checkingReadiness, refreshReadiness, retryConnection } = ff;
+function Services({ ff }: { ff: Fastforward }) {
+  const { connection, readiness, readinessError, checkingReadiness, refreshReadiness, retryConnection, run } = ff;
   const running = run !== null && !isTerminal(run.status);
 
-  if (connection === 'connecting') {
-    return <p id="readiness-line" className="status-line"><LoaderCircle className="spin" size={16} aria-hidden="true" /><span>Connecting to the test server…</span></p>;
-  }
   if (connection === 'offline') {
     return (
-      <div id="readiness-line" className="status-line status-line--bad">
-        <WifiOff size={16} aria-hidden="true" />
-        <span>This page can’t reach the Fastforward server, so nothing can be tested right now. It will keep trying.</span>
-        <button type="button" className="btn btn--quiet btn--small" onClick={retryConnection}>Try now</button>
-      </div>
+      <div id="readiness-line" className="notice notice--bad"><WifiOff size={20} aria-hidden="true" />
+        <div><p>We can’t reach the Fastforward server right now, so a test can’t start. We’ll keep trying.</p>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={retryConnection}>Try again now</button></div></div>
     );
   }
-  if (running) {
-    return <p id="readiness-line" className="status-line"><span>One test runs at a time. Yours is in progress.</span></p>;
-  }
-  if (!readiness) {
-    return (
-      <div id="readiness-line" className="status-line status-line--warn">
-        <span>Couldn’t confirm the test services are ready.</span>
-        <CheckAgain busy={checkingReadiness} onClick={refreshReadiness} />
-      </div>
-    );
-  }
-  if (!readiness.ready) {
-    return (
-      <div id="readiness-line" className="status-line status-line--warn">
-        <TriangleAlert size={16} aria-hidden="true" />
-        <div>
-          <span>A real test can’t start yet: some services are not ready. Nothing will be pretended.</span>
-          {readiness.blockers.length > 0 && (
-            <ul className="notice__list">{readiness.blockers.slice(0, 4).map(item => <li key={item}>{item}</li>)}</ul>
-          )}
-        </div>
-        <CheckAgain busy={checkingReadiness} onClick={refreshReadiness} />
-      </div>
-    );
-  }
-  return (
-    <p id="readiness-line" className="status-line status-line--good">
-      <span className="dot" aria-hidden="true" /><span>Ready. Runs real Stripe test subscriptions against the sample app.</span>
-    </p>
-  );
-}
 
-function CheckAgain({ busy, onClick }: { busy: boolean; onClick: () => void }) {
+  const byId = new Map(readiness?.providers.map(item => [item.id, item]) ?? []);
+  const anyDown = readiness ? !readiness.ready : false;
+  const providersDown = readiness ? readiness.providers.some(item => item.status !== 'ready') : false;
   return (
-    <button type="button" className="btn btn--quiet btn--small" onClick={onClick} disabled={busy}>
-      <RefreshCw size={14} aria-hidden="true" className={busy ? 'spin' : undefined} />
-      {busy ? 'Checking…' : 'Check again'}
-    </button>
+    <div className="services" id="readiness-line" aria-live="polite">
+      {SERVICES.map(service => {
+        const status = byId.get(service.id);
+        const state = !readiness ? 'checking' : status?.status === 'ready' ? 'ready' : 'down';
+        return (
+          <div key={service.id} className={`service is-${state}`}>
+            <span className="service__dot" aria-hidden="true">
+              {state === 'checking' ? <LoaderCircle size={18} className="spin" /> : state === 'ready' ? <CircleCheck size={18} /> : <CircleX size={18} />}
+            </span>
+            <span>{service.name}</span>
+            <span className="service__state">{state === 'checking' ? 'Checking…' : state === 'ready' ? 'Ready' : 'Not ready'}</span>
+            {state === 'down' && status?.message && <span className="service__msg">{status.message}</span>}
+          </div>
+        );
+      })}
+      {connection === 'connecting' && <p className="muted">Connecting…</p>}
+      {running && <p className="muted">Tests run one at a time. Yours is in progress.</p>}
+      {(anyDown || (!readiness && readinessError)) && (
+        <div className="notice notice--warn notice--prominent" id="test-blocker" tabIndex={-1} role="status"><TriangleAlert size={22} aria-hidden="true" />
+          <div>
+            <p className="notice__title">{!readiness ? 'We couldn’t confirm the test can start.'
+              : providersDown ? 'A test can’t start: a service above isn’t ready.'
+              : 'New tests are paused right now.'}</p>
+            {readiness && readiness.blockers.length > 0 && (
+              <ul className="notice__list notice__list--open">{readiness.blockers.map(item => <li key={item}>{item}</li>)}</ul>
+            )}
+            {!readiness && readinessError && <p>{readinessError.message}</p>}
+            <p className="muted">{providersDown ? 'Nothing was started, and we won’t show a pretend result.' : 'All services are working; the server simply isn’t accepting new tests at the moment. Saved results stay available. Please check again shortly.'}</p>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={refreshReadiness} disabled={checkingReadiness}>
+              <RefreshCw size={16} aria-hidden="true" className={checkingReadiness ? 'spin' : undefined} />{checkingReadiness ? 'Checking…' : 'Check again'}
+            </button>
+          </div></div>
+      )}
+    </div>
   );
 }

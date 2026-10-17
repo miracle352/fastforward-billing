@@ -109,7 +109,7 @@ export function Preview({ state }: { state: string }) {
     connection: shape.connection ?? 'online', connectionError: null, retryConnection: () => {},
     readiness: shape.readiness === undefined ? ready : shape.readiness, readinessError: null, checkingReadiness: false, refreshReadiness: noop,
     runs: shape.run ? [shape.run] : [], run: shape.run, events: shape.events, feed: shape.feed ?? 'idle', selectRun: () => {},
-    start: noop, starting: false, startError: shape.startError ?? null,
+    start: noop, starting: false, startError: shape.startError ?? null, startOutcome: null,
     cancel: async () => {}, cancelling: false, cancelError: null,
   };
   return <App ff={ff} preview={`state “${SHAPES[state] ? state : 'empty'}”`} />;

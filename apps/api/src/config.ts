@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 const Budget = z.coerce.number().int().nonnegative();
 const Env = z.object({
+  FASTFORWARD_REQUIRE_POSTGRES: z.enum(['true','false']).default('false'),
   FASTFORWARD_ACCEPT_RUNS: z.enum(['true','false']).default('true'),
   DATABASE_URL: z.string().default('').refine(value => {if(!value)return true;try{const url=new URL(value);return ['postgres:','postgresql:'].includes(url.protocol)&&url.hostname.endsWith('.neon.tech');}catch{return false;}}),
   HOST: z.string().default('127.0.0.1'), PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -23,6 +24,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
   const parsed = Env.safeParse(environment);
   if (!parsed.success) throw new Error('Invalid server configuration fields: ' + [...new Set(parsed.error.issues.map(issue => issue.path.join('.')))].join(', '));
   const env = parsed.data;
+  if (env.FASTFORWARD_REQUIRE_POSTGRES === 'true' && !env.DATABASE_URL) throw new Error('Hosted persistence requires DATABASE_URL; local SQLite fallback is disabled.');
   if (env.STRIPE_SECRET_KEY && !env.STRIPE_SECRET_KEY.startsWith('sk_test_')) throw new Error('The controller requires a Stripe secret TEST key; generated code receives only the separate restricted reader.');
   if (env.STRIPE_READONLY_KEY && !env.STRIPE_READONLY_KEY.startsWith('rk_test_')) throw new Error('The generated application requires a restricted Stripe TEST key.');
   const origin = new URL(env.APP_ORIGIN).origin;

@@ -1,55 +1,51 @@
-# Fastforward deployment checkpoint
+# Fastforward public hosting checkpoint
 
-Checked 2026-10-17, approximately 22:08 Lagos. Public deployment is **not complete**.
+Current observation: 2026-10-18 Lagos. **Public hosting is not verified.** The provider allocated https://production-fastforward-runtime.tyzo.nodeops.app and reports successful builds/deployed status, but actual HTTPS GET /api/health returns503. Do not present that URL as a working product or claim cloud persistence/worker operation.
 
-## Approved allocation and actual checks
+## One concrete configuration
 
-Only the existing Stripe Projects resource `fastforward-runtime` (`createos/project`, free component) is approved. Current `stripe projects services list --json` reports it complete, and a refreshed `projects catalog createos --json` reports that component available under the free account plan. No paid upgrade, top-up, new database, disk, or payment change was made.
+Use the existing approved CreateOS resource fastforward-runtime for one Node24 Docker image containing the compiled React frontend, trusted API and supervisor-managed persistent worker. Use the already-approved, provisioned Neon Free fastforward-data Postgres database for sessions, runs, allowances, events, resource recovery and artifact content. No additional provider resource is proposed.
 
-The resource's existing credential authenticates to the CreateOS platform using `X-Api-Key`; `/v1/users/me` reports `free-plan`. `/v1/quotas` reports 50 project slots, 1 used, 49 remaining. `/v1/projects` lists the prior product only. That existing product was not changed or reused. The Stripe provisioning receipt is not evidence of an actual running Fastforward application.
+The applied project/environment configuration is summarized without secrets in deploy/createos.json. This is an operator reference for the project and environment API settings, not a CLI config file. The provider's actual runtime catalogue lists dockerfile separately from node:24; the selected target is now dockerfile, with Node24 supplied by FROM node:24-bookworm-slim. Application port3000; one production replica,500 millicores and1024MB RAM (free-plan ceiling, increased from200/500 for startup headroom). Provider build limits are1000 millicores,1024MB and1800 seconds.
 
-Deployment usage is metered even with a free account plan. The current official pricing documentation lists CPU, RAM and storage consumption rates; the remaining account credit balance has not been established. Do not infer unlimited free hosting from the catalogue's free component label. Sources: https://createos.sh/docs/Account-Billing/Pricing/ and https://github.com/NodeOps-app/createos-mcp .
+The user explicitly approved disabling only this project's optional480-credit security scan. Build AI remains off. No paid plan, upgrade, payment or top-up was approved or requested.
 
-## Persistent storage blocker
+## Verified storage and SQLite decision
 
-The trusted controller uses SQLite WAL with the API and worker sharing one directory. It requires an explicitly persistent filesystem with SQLite locking semantics, mounted at `/data` (or `FASTFORWARD_DATA_DIR`), one deployment replica, and protection against overlapping writers during replacement.
+CreateOS explicitly documents no mounted deployment volumes: https://createos.sh/blogs/railway-alternative-for-ai-agents . SQLite WAL requires a durable filesystem with correct locking; no such deployment mount was established. A Docker VOLUME declaration is not storage evidence and has been removed.
 
-The inspected official deployment/environment settings expose CPU, memory, replicas and environment variables, but no documented persistent-volume mount. The official `CreateDisk` operation registers an S3-compatible bucket for a **sandbox**; it does not establish a deployment volume or SQLite WAL filesystem. Do not use that object-storage mount as an assumed SQLite solution. A Dockerfile `VOLUME` declaration alone is also not proof that the hosting platform allocates or retains storage.
+The hosted image requires FASTFORWARD_REQUIRE_POSTGRES=true and refuses startup without DATABASE_URL, preventing silent temporary SQLite fallback. Local SQLite remains supported when that requirement is false and is preserved as a private backup.
 
-Next required evidence: a supported durable mount within the approved resource and its cost/credit terms, followed by a deployed API/worker restart or replacement test proving that the same visitor's run and artifact hashes survive. Until then, do not claim persistent public hosting, substitute a temporary sandbox URL, provision another resource, or deploy with a disposable database.
+Actual Neon verification passed concurrent request replay, reopen persistence, ownership, cancellation, lease fencing and cleanup gating. Idle migration copied12 sessions,4 runs,90 events,16 artifacts and7 metadata records; every migrated row matched SQLite, and all16 artifact hashes matched. Both running local HTTP services committed fresh sessions to Neon, and protected saved-report downloads/ownership checks survived local process restart. These are real database/local HTTP results; cloud HTTP remains blocked.
 
-## Ready to deploy once storage and allowance are established
+The actual database size read was8,290,304 bytes. Neon currently advertises Free at$0 with100 CU-hours/month/project and1GB storage: https://neon.com/pricing . Remaining account-specific compute allowance was not available from SQL and is not asserted. Frequent worker polling keeps the database active; these free limits are finite. No automatic paid upgrade was configured.
 
-- `npm run check`, `npm test`, `npm run verify:integration` validate backend, frontend build and production HTTP integration.
-- Root Dockerfile builds Node 24, runs the API and worker supervisor, and serves the compiled React frontend from the API origin.
-- Supply runtime credentials through the provider's secret environment, never build variables or uploaded `.env`. Set `HOST=0.0.0.0`, `PORT=3000`, `APP_ORIGIN` to the actual HTTPS origin and `FASTFORWARD_DATA_DIR` to the verified persistent mount.
-- Retain existing limits: three Groq calls/run, 3000 output tokens/call, six global runs/rolling day, three runs/visitor/rolling day and 600-second deadline. No OpenAI API key is needed; the configured model is hosted by Groq.
-- Preserve the existing database and allowance if migrating; do not copy private visitor cookies into another browser or present previous private runs as a new visitor's result.
-- After deployment, verify same-origin secure HttpOnly cookies, CSRF, ownership denial, worker startup, artifact hashes and persistence before starting another billable test.
+## Credits and runtime cost
 
-## Local integrated preview
+Actual CreateOS balance snapshot:395.0357146033739 credits; free-plan, plan amount0. The provider payment conversion endpoint confirms100 credits/USD, orUSD0.01/credit. Account ledger includes real metered debits; a complete settled Fastforward runtime charge has not been identified.
 
-`http://127.0.0.1:3001` serves the production build and shares the existing private local store/worker. It does not replace the API on port 3000 or the unrelated service on 5173. `.local/serve-integrated.mjs` configures this preview only and is excluded from Git.
+Published rates: https://createos.sh/docs/Account-Billing/Pricing/ . At the initial200 millicores/500MB, the CPU/RAM estimate wasUSD0.31266864/day. At the current500 millicores/1024MB, it isUSD0.718806/day, approximatelyUSD21.56/30 days, before builds, storage, rounding and other account usage. Storage isUSD0.0038016 perGB/day. At the provider's maximum build duration, one1-core/1.024GB build is approximately2.40 credits before storage. Actual usage may differ; this is a calculation, not a fixed-price quote or unlimited free hosting.
 
-The actual browser-started repair passed at 21:00:52 UTC / 22:00:52 Lagos, using three Groq calls and 4645 reported tokens, with all seven fresh-customer verification checks passing and cleanup confirmed. The downloaded verification report's SHA256 matches the stored artifact. See `docs/evidence/2026-10-17-browser-integration.json`. This is local integration evidence, not cloud persistence.
+The balance would cover roughly5.5 days of that CPU/RAM estimate alone. Existing account workloads reduce that period. No recurring paid plan or top-up call was made. The existing account flag gnodeAutoConversionEnabled remains true: an attempt to disable it through the supported profile-update endpoint returned400 because that endpoint accepts profile fields only. Its financial effect and a provider-enforced credit-only cutoff remain unverified; do not claim automatic top-ups are disabled.
 
-## Confirmed storage decision - 2026-10-17, 23:52 Lagos
+## Secrets and execution limits
 
-CreateOS explicitly documents that deployment volumes are not mounted: https://createos.sh/blogs/railway-alternative-for-ai-agents . The user approved fastforward-data on Neon Free and its free Postgres component after catalogue availability/pricing checks. No database has been provisioned yet: Stripe Projects is signed into the Carry BUYER test-only account rather than the existing project's owning account. No project was recreated.
+Credentials are only in provider server-side runtime settings and private local files. Runtime readback matched the selected Stripe TEST controller/restricted reader, Groq, sandbox and Neon values. Build variables are empty. No VITE_ credential, uploaded .env, private report, SQLite database or provider vault is included.
 
-The optional DATABASE_URL path uses Postgres with verified TLS, durable request keys, transactional admission/leases/cleanup and ownership-protected artifacts. Without DATABASE_URL, local SQLite continues to work. scripts/verify-postgres.ts must pass against the actual approved database before claiming durable deployment. It creates and removes only a disposable isolated namespace; no model or sandbox call occurs.
+scripts/prepare-createos-upload.mjs builds an allowlisted allowlisted source snapshot, checks configured credential values and enforces the provider's100-file upload limit. The latest compiled-runtime snapshot contains55 files and420,689 bytes. SHA256 of its sorted path/hash manifest:0347aca7c53807d6a9b7ab9e7914ffd33f170ce1d64136c0826f1d0de45dd0a6.
 
-Before migration, pause new local admissions with FASTFORWARD_ACCEPT_RUNS=false, restart only owned idle processes, and confirm that the running readiness endpoint reports that exact pause. scripts/migrate-sqlite-postgres.ts refuses active source jobs, unobserved admission pause and nonempty destination tables; source SQLite remains intact. Configure all API/worker processes against the same Postgres database to preserve a single global allowance and active-job gate. Do not leave a second accepting SQLite controller running after cutover.
+Keep3 Groq calls/run,3000 output tokens/call,600-second execution deadline,6 global runs and3 visitor runs per rolling24h. Postgres admission and lease fencing retain one active job across processes. Cloud admission remains false until actual public verification passes. Local working services remain available on3000/3001 and share Neon; their existing evidence/allowances are preserved.
 
-Observed platform credit amount395.4321609482359, zero plan monthly amount and zero purchased-credit total are a point-in-time snapshot only. Public hosting, actual Postgres persistence/restart tests and deployed URL remain incomplete.
+## Actual deployment attempts and next verification
 
+Four source deployments completed their builds. Attempts1–3 used mixed Node/Docker settings, including a corrected explicit runtime command; actual health remained503. The fourth uses the catalogue-correct dedicated Dockerfile target and verified runtime-only secrets; actual health still returned503. Provider runtime logs return only a listening status with no API/worker startup evidence. A supported sleep/wakeup recovery was attempted on the third: immediate wake returned422 before asynchronous sleep completed; wake after observed sleeping returned200, but health still503. This is retained as failure evidence.
 
-## Actual Neon migration and hosting gate - 2026-10-18, 00:14 Lagos
+Superseded previews were put to sleep through the official recoverable deployment sleep operation, preserving their build artifacts and Neon data. Only the latest candidate is assigned to Production. There is no observed public worker startup, authenticated report access or replacement-persistence success. The current blocker is launch/routing diagnosis; storage has been verified independently. Asked the user for the dashboard's actual runtime/event error because API logs give no startup detail.
 
-This section supersedes the earlier account/provisioning blockers. Original owning-account context is restored. Neon Free and fastforward-data Postgres are complete; real database regression verification and the SQLite migration passed, with exact comparison across all six tables and16 matching artifact hashes. Both local services now use the migrated Postgres database. SQLite is preserved as an idle backup. Public hosting has not been deployed.
+Before enabling public jobs: observe API health200 and the safe worker startup marker; run node --import tsx scripts/verify-hosted-persistence.mjs before; prove secure cookies, CSRF, isolated visitor history and original-owner report hashes. Pause local admission, verify idle state, then enable cloud admission with unchanged limits. Replace/restart the actual healthy deployment and run the same verification with after, reusing that verification client's privately saved visitor session. Never copy its cookie into another browser or present a historical report as a new repair.
 
-CreateOS still reports395.4321609482359 credits and free-plan; automatic GNODE conversion is enabled, with its financial implications unverified. Verify a free-credit-only deployment limit before enabling compute. Never authorize paid plans, upgrades or top-ups. Pricing: https://createos.sh/docs/Account-Billing/Pricing/ . The optional security scan is480 credits per deployment.
+Do not spend another repair allowance to diagnose hosting. This continuation used zero new repair runs, model calls or generated sandboxes. A new resource is not established as necessary by these503 responses.
 
-A proposed empty upload project creation explicitly set enabledSecurityScan=false. Automatic approval review rejected that security-setting change without separate approval; nothing executed. The concrete proposed configuration is a Fastforward upload project under the existing approved runtime, Node24/Dockerfile, port3000, Build AI off, optional security scan off. Before actual deployment, use the supported minimum200mCPU/500MiB and exactly one replica, confirm those limits and cost, configure runtime-only secrets, and keep admission paused during local/cloud cutover. No source, secret, build or deployment has been uploaded.
+## Deadline-focused compiled runtime
 
-After approval, independently verify the resulting public HTTPS origin, secure cookie/CSRF, saved report ownership/hash and persistence across deployment replacement. Local Neon verification is not evidence that public hosting or deployment replacement works.
+A fifth image compiles API/worker with tsc and starts plain Node24 processes, removing runtime TypeScript-loader overhead. The actual compiled supervisor, API, persistent worker and HTTP session passed locally against Neon with admission paused; no generation or sandbox was used. The source still supports local TypeScript development. The compiled image built and was assigned to Production, but its observed public health remained503. Resource readback confirmed500 millicores/1024MB/one replica. API startup evidence is still absent from provider runtime logs; the failure cause has not been established. The team reported30 minutes remaining and could not locate the dashboard; a corrected direct dashboard link was supplied privately.

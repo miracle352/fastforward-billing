@@ -30,10 +30,10 @@ export const isAbort = (error: unknown) =>
 
 let csrfToken: string | null = null;
 
-type RequestOptions = { method?: 'GET' | 'POST'; body?: unknown; signal?: AbortSignal; csrf?: boolean };
+type RequestOptions = { method?: 'GET' | 'POST'; body?: unknown; signal?: AbortSignal; csrf?: boolean; headers?: Record<string, string> };
 
 async function request<T>(path: string, schema: z.ZodType<T>, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   if (options.csrf) {
     if (!csrfToken) await getSession(options.signal);
@@ -77,13 +77,13 @@ async function request<T>(path: string, schema: z.ZodType<T>, options: RequestOp
 }
 
 /** POST with CSRF. If the server says the token expired, refresh the session once and retry. */
-async function post<T>(path: string, schema: z.ZodType<T>, body: unknown, signal?: AbortSignal): Promise<T> {
+async function post<T>(path: string, schema: z.ZodType<T>, body: unknown, signal?: AbortSignal, headers?: Record<string, string>): Promise<T> {
   try {
-    return await request(path, schema, { method: 'POST', body, signal, csrf: true });
+    return await request(path, schema, { method: 'POST', body, signal, csrf: true, headers });
   } catch (caught) {
     if (caught instanceof ApiError && caught.status === 403 && caught.code === 'CSRF_INVALID') {
       await getSession(signal);
-      return request(path, schema, { method: 'POST', body, signal, csrf: true });
+      return request(path, schema, { method: 'POST', body, signal, csrf: true, headers });
     }
     throw caught;
   }
@@ -111,8 +111,9 @@ export const getRun = async (id: string, signal?: AbortSignal): Promise<RunRecor
 export const getEvents = (id: string, after: number, signal?: AbortSignal): Promise<{ events: RunEventRecord[]; nextCursor: number }> =>
   request(`/api/runs/${encodeURIComponent(id)}/events?after=${after}`, EventPage, { signal });
 
-export const createRun = async (scenarios: Scenario[], signal?: AbortSignal): Promise<RunRecord> =>
-  (await post('/api/runs', RunEnvelope, { scenarios }, signal)).run;
+/** One idempotency key per deliberate start; the same key is reused only to retry that start. */
+export const createRun = async (scenarios: Scenario[], idempotencyKey: string, signal?: AbortSignal): Promise<RunRecord> =>
+  (await post('/api/runs', RunEnvelope, { scenarios }, signal, { 'Idempotency-Key': idempotencyKey })).run;
 
 export const cancelRun = async (id: string, signal?: AbortSignal): Promise<RunRecord> =>
   (await post(`/api/runs/${encodeURIComponent(id)}/cancel`, RunEnvelope, {}, signal)).run;
