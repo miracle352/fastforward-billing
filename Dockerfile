@@ -1,0 +1,16 @@
+FROM node:24-bookworm-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+RUN npm ci --include=dev
+COPY . .
+# The React frontend must be implemented and pass this build before deployment.
+RUN npm run check && npm run build
+RUN mkdir -p /data && chown -R node:node /data
+ENV HOST=0.0.0.0 PORT=3000 FASTFORWARD_DATA_DIR=/data
+USER node
+EXPOSE 3000
+VOLUME ["/data"]
+CMD ["npm", "start"]

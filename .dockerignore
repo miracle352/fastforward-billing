@@ -1,0 +1,13 @@
+.git
+node_modules
+.env
+.env.*
+!.env.example
+.local
+.projects/vault
+.projects/cache
+.projects/state.local.json
+**/dist
+*.db
+*.sqlite
+*.log
