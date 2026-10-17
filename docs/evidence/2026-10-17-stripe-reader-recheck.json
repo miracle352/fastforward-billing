@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-10-17T21:18:17.382Z",
+  "testMode": true,
+  "reads": {
+    "customer": true,
+    "product": true,
+    "price": true,
+    "subscription": true
+  },
+  "customerWriteDenied": true,
+  "cleanup": {
+    "clock": true,
+    "price": true,
+    "product": true
+  },
+  "passed": true,
+  "limitation": "Confirms reads of fresh controller-created test objects and denial of one customer mutation, not an exhaustive permission audit."
+}

@@ -23,3 +23,11 @@ Record resource/project IDs and redacted creation receipts in BUILD-STATE.md; no
 Claude Code 2.1.287 was verified installed. Launch it in this exact Fastforward directory. Authenticate through its own login prompts if necessary. No account bridge between Claude and Codex is needed: both read the same local files, with AGENTS.md ownership boundaries. A normal Claude browser chat does not automatically edit this checkout.
 
 Read docs/DESIGN-SKILLS.md for the verified inventory, targeted missing skill installs and optional Regards MCP setup. Read docs/CLAUDE-DESIGN-BRIEF.md for the paste-ready frontend assignment.
+
+## Repeating the bounded verification
+
+`node --env-file=.env scripts/verify-stripe-reader.mjs` creates disposable Stripe TEST clock/customer/product/price/subscription objects, reads them with the saved restricted key, checks that one customer write is denied and cleans up the test objects. It prints only redacted checks, never credentials. Private resource tracking is saved under .local/ for recovery.
+
+With the trusted API and worker running, `node scripts/run-live-check.mjs` deliberately consumes one real run under the configured shared allowance. It checks actual signed webhooks, baseline access, generated repair, fresh clocks/invoices and artifact integrity. It does not fabricate a passing result or retry job submission automatically. Public evidence omits IDs; session and detailed evidence stay in .local/. Do not use this command as a free health check.
+
+Groq generation responses now retain an allowlisted snapshot of numeric rate-limit headers. Model visibility and a free-plan label do not prove remaining spend credit. See the current provider-allowance receipt and BUILD-STATE.md for measured counts and explicit unknowns.

@@ -1,0 +1,233 @@
+{
+  "checkedAt": "2026-10-17T21:25:58.347Z",
+  "scope": "Actual local trusted controller, real signed Stripe TEST webhooks and CreateOS execution; not hosted or production certification.",
+  "status": "passed",
+  "createdAt": "2026-10-17T21:23:57.305Z",
+  "updatedAt": "2026-10-17T21:25:56.271Z",
+  "attempt": 1,
+  "summary": "Generated repair passed the fixed access and isolation checks using fresh Stripe test subscriptions. This result covers the supported sample and selected scenarios.",
+  "error": null,
+  "budgets": {
+    "modelCallsMaximum": 3,
+    "outputTokensPerCallMaximum": 3000,
+    "runTimeoutSeconds": 600,
+    "oneActiveJob": true,
+    "duplicateStartDenied": 409
+  },
+  "modelCalls": 1,
+  "reportedTotalTokens": 1475,
+  "groqAllowances": [
+    {
+      "checkedAt": "2026-10-17T21:24:54.949Z",
+      "rateLimits": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "999",
+        "x-ratelimit-remaining-tokens": "6815",
+        "x-ratelimit-reset-requests": "1m26.4s",
+        "x-ratelimit-reset-tokens": "8.887s"
+      }
+    }
+  ],
+  "baselineMismatchObserved": true,
+  "verificationChecks": [
+    {
+      "scenario": "healthy_renewal",
+      "checkpoint": "verification: initial subscription access",
+      "expectedAccess": true,
+      "observedAccess": true,
+      "stripeStatus": "active",
+      "verdict": "passed",
+      "message": "Authenticated customer received only their private report."
+    },
+    {
+      "scenario": "trial_payment_failure",
+      "checkpoint": "verification: initial subscription access",
+      "expectedAccess": true,
+      "observedAccess": true,
+      "stripeStatus": "trialing",
+      "verdict": "passed",
+      "message": "Authenticated customer received only their private report."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "checkpoint": "verification: after billing transition",
+      "expectedAccess": true,
+      "observedAccess": true,
+      "stripeStatus": "active",
+      "verdict": "passed",
+      "message": "Authenticated customer received only their private report."
+    },
+    {
+      "scenario": "trial_payment_failure",
+      "checkpoint": "verification: after billing transition",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": "past_due",
+      "verdict": "passed",
+      "message": "Customer without an eligible subscription was denied."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "checkpoint": "verification: unauthenticated report",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": null,
+      "verdict": "passed",
+      "message": "Request correctly denied with HTTP 401."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "checkpoint": "verification: unknown identity",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": null,
+      "verdict": "passed",
+      "message": "Request correctly denied with HTTP 401."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "checkpoint": "verification: another customer report",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": null,
+      "verdict": "passed",
+      "message": "Request correctly denied with HTTP 403."
+    }
+  ],
+  "signedEventCounts": [
+    {
+      "phase": "baseline",
+      "count": 9
+    },
+    {
+      "phase": "verification",
+      "count": 9
+    }
+  ],
+  "invoiceIdentity": [
+    {
+      "phase": "baseline",
+      "invoiceIdentity": [
+        {
+          "scenario": "healthy_renewal",
+          "initialInvoiceObserved": true,
+          "transitionInvoiceObserved": true,
+          "invoiceChanged": true
+        },
+        {
+          "scenario": "trial_payment_failure",
+          "initialInvoiceObserved": true,
+          "transitionInvoiceObserved": true,
+          "invoiceChanged": true
+        }
+      ]
+    },
+    {
+      "phase": "verification",
+      "invoiceIdentity": [
+        {
+          "scenario": "healthy_renewal",
+          "initialInvoiceObserved": true,
+          "transitionInvoiceObserved": true,
+          "invoiceChanged": true
+        },
+        {
+          "scenario": "trial_payment_failure",
+          "initialInvoiceObserved": true,
+          "transitionInvoiceObserved": true,
+          "invoiceChanged": true
+        }
+      ]
+    }
+  ],
+  "freshStripeObjectsObserved": true,
+  "validation": [
+    {
+      "attempt": 1,
+      "exitCode": 0
+    }
+  ],
+  "cleanupConfirmed": true,
+  "artifacts": [
+    {
+      "kind": "source",
+      "name": "billing-attempt-1.py",
+      "sha256": "ce503b2252184df838f26d74402c7456a7b7389de7bf0c08af611fc73cf43a60",
+      "matched": true,
+      "anonymousDenied": true
+    },
+    {
+      "kind": "execution",
+      "name": "execution-attempt-1.json",
+      "sha256": "3be362c20f8f00bfc9abe7c3cef12c49d8d7c3a3aa241caeb137dec95869c35a",
+      "matched": true,
+      "anonymousDenied": true
+    },
+    {
+      "kind": "patch",
+      "name": "billing-repair.patch",
+      "sha256": "428e9f072e442c8d97e2861023b776c54d7c2ef7f023efe401154c5de24eaa66",
+      "matched": true,
+      "anonymousDenied": true
+    },
+    {
+      "kind": "report",
+      "name": "verification-report.json",
+      "sha256": "87c8db2c776f8a8f18157a8cab603d8e5c027e63b4ebe24101d7790d10359bce",
+      "matched": true,
+      "anonymousDenied": true
+    }
+  ],
+  "otherVisitorDenied": true,
+  "billingTransitions": [
+    {
+      "phase": "baseline",
+      "observations": [
+        {
+          "scenario": "healthy_renewal",
+          "status": "active",
+          "invoiceStatus": "paid",
+          "invoicePaid": true,
+          "amountDue": 1900,
+          "amountPaid": 1900,
+          "simulatedClockTime": 1794954344
+        },
+        {
+          "scenario": "trial_payment_failure",
+          "status": "past_due",
+          "invoiceStatus": "open",
+          "invoicePaid": false,
+          "amountDue": 1900,
+          "amountPaid": 0,
+          "simulatedClockTime": 1792880747
+        }
+      ]
+    },
+    {
+      "phase": "verification",
+      "observations": [
+        {
+          "scenario": "healthy_renewal",
+          "status": "active",
+          "invoiceStatus": "paid",
+          "invoicePaid": true,
+          "amountDue": 1900,
+          "amountPaid": 1900,
+          "simulatedClockTime": 1794954398
+        },
+        {
+          "scenario": "trial_payment_failure",
+          "status": "past_due",
+          "invoiceStatus": "open",
+          "invoicePaid": false,
+          "amountDue": 1900,
+          "amountPaid": 0,
+          "simulatedClockTime": 1792880801
+        }
+      ]
+    }
+  ],
+  "independentCleanupConfirmed": true,
+  "cleanupAuditNote": "The terminal run metadata has not been rewritten to bypass lease fencing. Future cleanup now verifies canceled subscriptions and persists process completion."
+}

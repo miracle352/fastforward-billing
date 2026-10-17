@@ -11,7 +11,7 @@ import { CreateOSProvider, GroqCodeProvider, StripeBillingProvider, ProviderErro
   type FixtureResource, type StripeFixtureBundle, type StripeObservation } from './providers/index.js';
 import { evaluateDenied, evaluateReport, failedChecks, type ReportObservation, type ReportPerson } from './evaluator.js';
 
-type Resource = { kind: FixtureResource['kind'] | 'sandbox' | 'process'; id: string; cleaned?: boolean };
+export type Resource = { kind: FixtureResource['kind'] | 'sandbox' | 'process'; id: string; cleaned?: boolean };
 export type Evidence = {
   events: Array<{ id: string; type: string; object_id: string; customer_id: string | null; stripe_status: string | null }>;
   errors?: Array<{ event_id: string; type: string; object_id: string; run_id: string; error_type: string; message: string }>;
@@ -155,19 +155,37 @@ async function controlled(url: string, path: string, controlToken: string, signa
   return result.body;
 }
 
-async function cleanupResources(resources: Resource[], stripe: StripeBillingProvider, createos: CreateOSProvider,
+export async function cleanupResources(resources: Resource[], stripe: StripeBillingProvider, createos: CreateOSProvider,
   options: { fixturesOnly?: boolean; onUpdate?: () => void } = {}): Promise<string[]> {
   const failures: string[] = [];
-  // Clock deletion removes its associated test customers/subscriptions. Archive price/product explicitly.
+  // Stripe retains canceled subscription records after deleting a test clock.
+  // Verify customer deletion and subscription cancellation; archive price/product explicitly.
   const order = ['webhook', 'clock', 'price', 'product', 'sandbox', 'process', 'customer', 'subscription'];
   for (const kind of order) for (const resource of resources.filter(item => item.kind === kind && !item.cleaned)) {
     if (options.fixturesOnly && ['webhook', 'sandbox', 'process'].includes(kind)) continue;
     if (['customer', 'subscription'].includes(kind)) {
-      if (resources.filter(item => item.kind === 'clock').every(item => item.cleaned)) resource.cleaned = true;
+      if (resources.filter(item => item.kind === 'clock').every(item => item.cleaned)) {
+        try {
+          if (kind === 'customer') {
+            const customer = await stripe.controller.customers.retrieve(resource.id);
+            if (!customer.deleted) throw new Error('Customer deletion not confirmed.');
+          } else {
+            const subscription = await stripe.controller.subscriptions.retrieve(resource.id);
+            if (subscription.livemode !== false || subscription.status !== 'canceled')
+              throw new Error('Test subscription cancellation not confirmed.');
+          }
+          resource.cleaned = true;
+        } catch (error) {
+          if (isGone(error)) resource.cleaned = true;
+          else failures.push(kind + ' cleanup not confirmed: ' + resource.id);
+        }
+        options.onUpdate?.();
+      }
       continue;
     }
     if (kind === 'process') {
       if (resources.filter(item => item.kind === 'sandbox').every(item => item.cleaned)) resource.cleaned = true;
+      options.onUpdate?.();
       continue;
     }
     try {
@@ -321,7 +339,7 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
         const repair = await groq.generateRepair({ source, contract: `${contract}\nSafety validator: no imports, annotations, filesystem/process calls, loops, indirect calls, aliases or extra/nested definitions. Do not rebind event, db, stripe_get or builtins. SQL must be an explicit constant string writing only access; call db.execute directly.`, failures }, signal);
         source = repair.source;
         store.addArtifact(run.id, lease, { kind: 'source', name: `billing-attempt-${attempt}.py`, content: source });
-        event('model', 'The model returned a new handler implementation; success has not been assumed.', { attempt, model: repair.model, usage: repair.usage, explanation: repair.explanation, sourceSha256: sha(source) });
+        event('model', 'The model returned a new handler implementation; success has not been assumed.', { attempt, model: repair.model, usage: repair.usage, rateLimits: repair.rateLimits, explanation: repair.explanation, sourceSha256: sha(source) });
         // The application never imports candidate.py. Validation precedes installation.
         await createos.uploadFiles(sandbox, { [`${ROOT}/candidate.py`]: source });
         const execution = await createos.execute(sandbox, 'python3', [`${ROOT}/validate.py`], 15_000);
@@ -355,13 +373,13 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
     }
     assertActive();
     store.addArtifact(run.id, lease, { kind: 'report', name: 'verification-report.json', content: JSON.stringify({ runId: run.id,
-      testMode: true, policy: run.policy, proposedOutcome: desired, modelCalls: groq.callsUsed, checks,
+      testMode: true, policy: run.policy, proposedOutcome: desired, modelCalls: groq.callsUsed, modelRateLimits: groq.rateLimits, checks,
       limitation: 'Synthetic sample application and Stripe test objects only. Physical time and production billing were not changed.' }, null, 2) });
   } catch (error) {
     if (error instanceof StoreError && error.code === 'LEASE_LOST') return;
     desired = error instanceof ProviderError ? 'blocked' : 'failed';
     errorMessage = error instanceof ProviderError ? error.message : signal.aborted ? 'Execution stopped by cancellation, shutdown or its configured deadline.' : 'The real provider or sample-app verification did not complete. Inspect the saved bounded activity record.';
-    try { event('error', errorMessage); } catch { /* A fenced worker must not write. */ }
+    try { event('error', errorMessage, { modelRateLimits: groq.rateLimits }); } catch { /* A fenced worker must not write. */ }
   } finally {
     // Cleanup deliberately has its own bounded provider calls, independent of an aborted work signal.
     try {

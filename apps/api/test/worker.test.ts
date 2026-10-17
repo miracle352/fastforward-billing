@@ -57,3 +57,26 @@ test('public preview readiness stops at its total deadline and respects run canc
   await assert.rejects(waitForPreviewHealth('https://sample.example',cancelled.signal,{timeoutMs:1000,fetcher:(async()=>{attempts++;return Response.json({ready:true,testMode:true});}) as typeof fetch}),/Run cancelled/);
   assert.equal(attempts,0);
 });
+
+test('cleanup verifies canceled Stripe records and persists process completion after sandbox destruction', async () => {
+  const { cleanupResources } = await import('../src/worker.js');
+  const resources: import('../src/worker.js').Resource[] = [
+    {kind:'sandbox',id:'sandbox-test'},{kind:'process',id:'process-test'},
+    {kind:'clock',id:'clock-test'},{kind:'customer',id:'customer-test'},{kind:'subscription',id:'subscription-test'},
+  ];
+  const reads: string[] = []; const snapshots: boolean[][] = [];
+  let subscriptionStatus: 'canceled' | 'active' = 'canceled';
+  const stripe = {controller:{testHelpers:{testClocks:{del:async()=>({deleted:true})}},
+    customers:{retrieve:async()=>{reads.push('customer');return{deleted:true};}},
+    subscriptions:{retrieve:async()=>{reads.push('subscription');return{status:subscriptionStatus,livemode:false};}},
+  }} as unknown as import('../src/providers/stripe.js').StripeBillingProvider;
+  const createos = {reconnect:async()=>({}),destroy:async()=>({destroyed:true})} as unknown as import('../src/providers/createos.js').CreateOSProvider;
+  assert.deepEqual(await cleanupResources(resources,stripe,createos,{onUpdate:()=>snapshots.push(resources.map(r=>r.cleaned===true))}),[]);
+  assert.deepEqual(reads,['customer','subscription']);
+  assert.ok(resources.every(r=>r.cleaned));
+  assert.ok(snapshots.at(-1)?.every(Boolean),'Final process cleanup must reach durable metadata');
+  const retained = [{kind:'subscription' as const,id:'subscription-still-active'}];
+  subscriptionStatus = 'active';
+  assert.equal((await cleanupResources(retained,stripe,createos)).length,1);
+  assert.notEqual((retained[0] as import('../src/worker.js').Resource).cleaned,true);
+});

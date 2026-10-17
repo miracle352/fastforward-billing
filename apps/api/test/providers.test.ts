@@ -103,3 +103,16 @@ test('valid generated source returns provider usage rather than a success verdic
   assert.equal(result.call, 1); assert.equal(result.usage.totalTokens, 30);
   assert.equal('passed' in result, false); assert.equal('verified' in result, false);
 });
+
+test('generation exposes only allowlisted numeric provider allowance headers, including on refusal', async () => {
+  const provider = new GroqCodeProvider({apiKey:'not-a-real-key',model:'test-model',maxCalls:3,maxOutputTokens:512,timeoutMs:5000},
+    (async () => new Response('private provider body', {status:429,headers:{
+      'x-ratelimit-remaining-requests':'0','x-ratelimit-remaining-tokens':'1234','x-ratelimit-reset-tokens':'2m3.4s',
+      'retry-after':'60','authorization':'private-secret','x-ratelimit-reset-requests':'secret-value',
+    }})) as typeof fetch);
+  await assert.rejects(provider.generateRepair({source:'pass',contract:'contract',failures:[]}),/HTTP 429/);
+  assert.deepEqual(provider.rateLimits,{'x-ratelimit-remaining-requests':'0','x-ratelimit-remaining-tokens':'1234','x-ratelimit-reset-tokens':'2m3.4s','retry-after':'60'});
+  const snapshot: Record<string, string> = { ...provider.rateLimits }; snapshot['authorization']='must-not-mutate-provider';
+  assert.equal(Object.hasOwn(provider.rateLimits,'authorization'),false);
+  assert.equal(provider.callsUsed,1);
+});

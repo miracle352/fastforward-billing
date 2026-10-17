@@ -1,0 +1,68 @@
+{
+  "checkedAt": "2026-10-17T21:24:30.833Z",
+  "platform": {
+    "plan": "free-plan",
+    "projectSlots": {
+      "max": 50,
+      "current": 1,
+      "remaining": 49
+    },
+    "remainingDeployCreditBalance": null
+  },
+  "stripeProjects": {
+    "initialized": true,
+    "resource": {
+      "name": "fastforward-runtime",
+      "pricing": "Free",
+      "status": "complete"
+    },
+    "additionalResourcesProvisioned": false,
+    "paidChanges": false
+  },
+  "sandbox": {
+    "listed": 22,
+    "creationDatesVerified": true,
+    "createdLast24h": 3,
+    "publishedFreeDailyLimit": 10,
+    "remainingAgainstPublishedDailyLimit": 7,
+    "active": 1,
+    "accountSpecificDailyCapVerified": false,
+    "creditBalance": null,
+    "limitSource": "https://createos.sh/docs/Sandbox/Limits/"
+  },
+  "localBudget": {
+    "maxModelCallsPerRun": 3,
+    "maxOutputTokensPerCall": 3000,
+    "maxRunSeconds": 600,
+    "maxActiveJobs": 1,
+    "maxRollingGlobalRuns": 6,
+    "rollingGlobalRunsUsed": 4,
+    "rollingGlobalRunsRemaining": 2,
+    "maxRollingVisitorRuns": 3
+  },
+  "groq": {
+    "model": "openai/gpt-oss-120b",
+    "preGenerationRemainingCounters": null,
+    "allowanceSource": "Generation response headers captured on the requested actual repair, without an extra probe generation."
+  },
+  "limitations": [
+    "No account-specific credit balance is inferred from an authenticated identity, free-plan label or model visibility.",
+    "Sandbox remaining count is computed from all listed creation dates against the published free limit; provider acceptance remains authoritative."
+  ],
+  "afterRun": {
+    "checkedAt": "2026-10-17T21:26:51.196Z",
+    "activeSandboxes": 0,
+    "createdLast24h": 3,
+    "groqRateLimitSnapshot": {
+      "checkedAt": "2026-10-17T21:24:54.949Z",
+      "rateLimits": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "999",
+        "x-ratelimit-remaining-tokens": "6815",
+        "x-ratelimit-reset-requests": "1m26.4s",
+        "x-ratelimit-reset-tokens": "8.887s"
+      }
+    }
+  }
+}

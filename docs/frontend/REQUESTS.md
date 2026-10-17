@@ -108,3 +108,12 @@ Reason and affected screen: This resolves the previous port-origin/browser-creat
 Proposed smallest change: Preserve the completed connected implementation and address that specific uncertainty state. Keep production preview data separate from design fixtures.
 Blocking: browser happy path verified; persistent public hosting still blocked on a verified SQLite-compatible volume and deployment credit balance.
 Resolution and observed check: docs/evidence/2026-10-17-browser-integration.json and docs/DEPLOYMENT.md record actual results. Existing 3000 API/worker and unrelated5173 application preserved. No additional provider resource or paid change made.
+
+Time (Lagos): 2026-10-17 22:32
+Owner: Codex
+Type: integration / status
+Request: A further requested actual signed-webhook run passed all seven fresh-clock checks with one Groq call and1475 reported tokens. No API schema changed. Model activity data and report artifacts now include optional numeric rate-limit snapshots; existing parsers need no change.
+Reason and affected screen: Real allowance evidence is available without exposing headers wholesale. Cleanup now verifies retained subscriptions are canceled and persists the process-cleaned flag after sandbox destruction.
+Proposed smallest change: Continue using canonical schemas; preserve the earlier uncertain-start wording/history request. No frontend source changed by Codex.
+Blocking: no for this verified run; existing public persistent-hosting blocker remains.
+Resolution and observed check:25 backend tests, typecheck and production frontend/API integration passed. Redacted evidence is in docs/evidence/2026-10-17-bounded-recheck.json and the related provider, restricted-reader and cleanup receipts. All clocks/customers/webhook/sandbox cleaned; retained subscriptions canceled and catalogue objects archived.

@@ -1,0 +1,130 @@
+{
+  "checkedAt": "2026-10-17T21:30:14.738Z",
+  "cleanupPending": 0,
+  "activeSandboxes": 0,
+  "resources": [
+    {
+      "kind": "sandbox",
+      "controllerRecordedCleaned": true,
+      "observed": "destroyed",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "process",
+      "controllerRecordedCleaned": false,
+      "observed": "parent_sandbox_destroyed",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "webhook",
+      "controllerRecordedCleaned": true,
+      "observed": "not_found",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "product",
+      "controllerRecordedCleaned": true,
+      "observed": "inactive",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "price",
+      "controllerRecordedCleaned": true,
+      "observed": "inactive",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "clock",
+      "controllerRecordedCleaned": true,
+      "observed": "not_found",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "customer",
+      "controllerRecordedCleaned": true,
+      "observed": "deleted",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "subscription",
+      "controllerRecordedCleaned": true,
+      "observed": "canceled",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "clock",
+      "controllerRecordedCleaned": true,
+      "observed": "not_found",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "customer",
+      "controllerRecordedCleaned": true,
+      "observed": "deleted",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "subscription",
+      "controllerRecordedCleaned": true,
+      "observed": "canceled",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "product",
+      "controllerRecordedCleaned": true,
+      "observed": "inactive",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "price",
+      "controllerRecordedCleaned": true,
+      "observed": "inactive",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "clock",
+      "controllerRecordedCleaned": true,
+      "observed": "not_found",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "customer",
+      "controllerRecordedCleaned": true,
+      "observed": "deleted",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "subscription",
+      "controllerRecordedCleaned": true,
+      "observed": "canceled",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "clock",
+      "controllerRecordedCleaned": true,
+      "observed": "not_found",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "customer",
+      "controllerRecordedCleaned": true,
+      "observed": "deleted",
+      "independentlyConfirmed": true
+    },
+    {
+      "kind": "subscription",
+      "controllerRecordedCleaned": true,
+      "observed": "canceled",
+      "independentlyConfirmed": true
+    }
+  ],
+  "passed": true,
+  "auditHistory": [
+    {
+      "checkedAt": "2026-10-17T21:26:51.183Z",
+      "passed": false,
+      "note": "Initial audit incorrectly required subscription deletion. Fresh Stripe reads show retained records are canceled. It also exposed the historical process-flag persistence bug."
+    }
+  ],
+  "trackingNote": "The terminal run metadata has not been rewritten to bypass lease fencing. Future cleanup now verifies canceled subscriptions and persists process completion."
+}

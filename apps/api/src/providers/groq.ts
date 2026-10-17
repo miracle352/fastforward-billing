@@ -6,11 +6,13 @@ export interface RepairRequest {
 export interface GeneratedRepair {
   source: string; explanation: string; model: string; call: number;
   usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+  rateLimits: Record<string, string>;
 }
 
 /** One instance per run. No hidden retries: an attempted request consumes one call. */
 export class GroqCodeProvider {
   private calls = 0;
+  private observedLimits: Record<string, string> = {};
   private readonly config: { apiKey: string; model: string; maxCalls: number; maxOutputTokens: number; timeoutMs: number };
   constructor(config: { apiKey: string; model: string; maxCalls: number; maxOutputTokens: number; timeoutMs: number },
     private readonly fetcher: typeof fetch = fetch) {
@@ -21,6 +23,7 @@ export class GroqCodeProvider {
     this.config = config;
   }
   get callsUsed(): number { return this.calls; }
+  get rateLimits(): Record<string, string> { return { ...this.observedLimits }; }
 
   async probe(): Promise<{ model: string; available: true; billableCallMade: false }> {
     try {
@@ -53,6 +56,16 @@ export class GroqCodeProvider {
               observedFailureFeedback: request.failures }) },
           ] }),
       });
+      // Only documented numeric counters/durations may become public event data.
+      // Never serialize response headers wholesale or forward provider body text.
+      const observed: Record<string, string> = {};
+      for (const name of ['x-ratelimit-limit-requests','x-ratelimit-limit-tokens',
+        'x-ratelimit-remaining-requests','x-ratelimit-remaining-tokens',
+        'x-ratelimit-reset-requests','x-ratelimit-reset-tokens','retry-after']) {
+        const value = response.headers.get(name);
+        if (value && value.length <= 80 && /^[0-9.dhms]+$/.test(value)) observed[name] = value;
+      }
+      this.observedLimits = observed;
       if (!response.ok) throw new ProviderError('groq', `HTTP_${response.status}`, `Groq generation failed (HTTP ${response.status}). No successful repair is recorded.`);
       const data = await response.json() as { choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
         usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } };
@@ -65,7 +78,7 @@ export class GroqCodeProvider {
         || typeof decoded.explanation !== 'string' || decoded.explanation.length > 2000
         || /(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{12,}|gsk_[A-Za-z0-9]{12,}|whsec_[A-Za-z0-9]{12,}/.test(decoded.source))
         throw new ProviderError('groq', 'INVALID_SOURCE', 'The generated source is missing, oversized or contains a credential-like value.');
-      return { source: decoded.source, explanation: decoded.explanation, model: this.config.model, call: this.calls,
+      return { source: decoded.source, explanation: decoded.explanation, model: this.config.model, call: this.calls, rateLimits: this.rateLimits,
         usage: { promptTokens: data.usage?.prompt_tokens ?? 0, completionTokens: data.usage?.completion_tokens ?? 0,
           totalTokens: data.usage?.total_tokens ?? 0 } };
     } catch (error) { throw safeProviderError('groq', error); }
