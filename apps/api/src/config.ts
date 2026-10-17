@@ -7,7 +7,7 @@ const Env = z.object({
   APP_ORIGIN: z.string().url().default('http://localhost:5173'),
   FASTFORWARD_DATA_DIR: z.string().default('.local/data'),
   FASTFORWARD_SESSION_SECRET: z.string().default(''),
-  CREATEOS_SANDBOX_BASE_URL: z.string().url().default('https://api-eu.sb.createos.sh'),
+  CREATEOS_SANDBOX_BASE_URL: z.string().url().refine(value => { try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password; } catch { return false; } }).default('https://api-eu.sb.createos.sh'),
   CREATEOS_SANDBOX_API_KEY: z.string().default(''),
   CREATEOS_SANDBOX_SHAPE: z.string().default('s-1vcpu-1gb'),
   STRIPE_SECRET_KEY: z.string().default(''), STRIPE_READONLY_KEY: z.string().default(''),
@@ -18,7 +18,9 @@ const Env = z.object({
 });
 
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
-  const env = Env.parse(environment);
+  const parsed = Env.safeParse(environment);
+  if (!parsed.success) throw new Error('Invalid server configuration fields: ' + [...new Set(parsed.error.issues.map(issue => issue.path.join('.')))].join(', '));
+  const env = parsed.data;
   if (env.STRIPE_SECRET_KEY && !env.STRIPE_SECRET_KEY.startsWith('sk_test_')) throw new Error('The controller requires a Stripe secret TEST key; generated code receives only the separate restricted reader.');
   if (env.STRIPE_READONLY_KEY && !env.STRIPE_READONLY_KEY.startsWith('rk_test_')) throw new Error('The generated application requires a restricted Stripe TEST key.');
   const origin = new URL(env.APP_ORIGIN).origin;

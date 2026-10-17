@@ -1,11 +1,8 @@
 import Stripe from 'stripe';
-import { createClient } from '@nodeops-createos/sandbox';
 import type { ReadinessRecord, ProviderReadinessRecord } from '@fastforward/contracts';
 import type { Config } from './config.js';
 import type { RunStore } from './store.js';
 
-let cached: { at: number; result: ProviderReadinessRecord[] } | undefined;
-let pending: Promise<ProviderReadinessRecord[]> | undefined;
 async function probes(config: Config): Promise<ProviderReadinessRecord[]> {
   const check = async (id: ProviderReadinessRecord['id'], key: string, work: () => Promise<string>): Promise<ProviderReadinessRecord> => {
     if (!key) return {id,status:'unconfigured',message:`${id === 'stripe_readonly' ? 'Restricted Stripe test' : id} credential needs setup.`,checkedAt:null};
@@ -24,8 +21,12 @@ async function probes(config: Config): Promise<ProviderReadinessRecord[]> {
       return 'Restricted test-key reads confirmed. Permission configuration requires operator confirmation.';
     }),
     check('createos',config.createos.apiKey,async()=>{
-      const client=createClient({apiKey:config.createos.apiKey,baseUrl:config.createos.baseUrl,timeoutMs:12000,retry:false});
-      await client.whoami();
+      const response=await fetch(new URL('/v1/whoami',config.createos.baseUrl),{
+        headers:{'X-Api-Key':config.createos.apiKey},signal:AbortSignal.timeout(12000),redirect:'error',
+      });
+      if(!response.ok)throw new Error('Sandbox identity check refused');
+      const payload=await response.json() as {data?:{user_id?:unknown};user_id?:unknown};
+      if(typeof (payload.data??payload).user_id!=='string')throw new Error('Sandbox identity not observed');
       return 'CreateOS EU account access confirmed. No sandbox was created by this check.';
     }),
     check('groq',config.groq.apiKey,async()=>{
@@ -37,15 +38,22 @@ async function probes(config: Config): Promise<ProviderReadinessRecord[]> {
     }),
   ]);
 }
-export async function getReadiness(config:Config,store:RunStore,force=false):Promise<ReadinessRecord>{
-  if(force || !cached || Date.now()-cached.at>300000){
-    pending??=probes(config).then(result=>{cached={at:Date.now(),result};return result;}).finally(()=>{pending=undefined;});
-    await pending;
-  }
-  const providers=cached!.result;
-  const blockers=providers.filter(p=>p.status!=='ready').map(p=>p.message);
-  if(!config.stripe.readonlyConfirmed) blockers.push('Configure and confirm a read-only restricted Stripe test key for the generated application.');
-  if(config.groq.maxCalls<1 || config.groq.maxOutputTokens<128 || config.server.globalDailyLimit<1) blockers.push('The operator must configure model-call, output-token and daily-run budgets before execution.');
-  if(store.getCleanupPending().length) blockers.push('A previous run has resources awaiting confirmed cleanup.');
-  return {ready:!blockers.length,providers,blockers,testMode:true,activeRunId:store.getActiveRun()?.id??null};
+/** Failed probes retry after 15 s; successful probes cache for 5 min. Configurations never share credentials/cache. */
+export function createReadinessReader(probe: (config:Config)=>Promise<ProviderReadinessRecord[]>, clock:()=>number=Date.now) {
+  const caches=new WeakMap<Config,{at:number; providers:ProviderReadinessRecord[]|null; pending?:Promise<ProviderReadinessRecord[]>}>();
+  return async (config:Config,store:RunStore,force=false):Promise<ReadinessRecord> => {
+    let entry=caches.get(config); if(!entry){entry={at:0,providers:null};caches.set(config,entry);}
+    const ttl=entry.providers?.every(p=>p.status==='ready')?300000:15000;
+    if(force||!entry.providers||clock()-entry.at>=ttl){
+      entry.pending??=probe(config).then(providers=>{entry!.providers=providers;entry!.at=clock();return providers;}).finally(()=>{entry!.pending=undefined;});
+      await entry.pending;
+    }
+    const providers=entry.providers!;
+    const blockers=providers.filter(p=>p.status!=='ready').map(p=>p.message);
+    if(!config.stripe.readonlyConfirmed)blockers.push('Configure and confirm a read-only restricted Stripe test key for the generated application.');
+    if(config.groq.maxCalls<1||config.groq.maxOutputTokens<128||config.server.globalDailyLimit<1)blockers.push('The operator must configure model-call, output-token and daily-run budgets before execution.');
+    if(store.getCleanupPending().length)blockers.push('A previous run has resources awaiting confirmed cleanup.');
+    return {ready:!blockers.length,providers,blockers,testMode:true,activeRunId:store.getActiveRun()?.id??null};
+  };
 }
+export const getReadiness=createReadinessReader(probes);

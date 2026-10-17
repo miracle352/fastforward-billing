@@ -1,3 +1,4 @@
+import { redactDiagnosticText } from '../privacy.js';
 import { setTimeout as delay } from 'node:timers/promises';
 
 export class ProviderError extends Error {
@@ -11,7 +12,8 @@ export class ProviderError extends Error {
 export function safeProviderError(provider: string, error: unknown): ProviderError {
   if (error instanceof ProviderError) return error;
   const value = error as { status?: number; statusCode?: number; code?: string } | null;
-  const status = value?.status ?? value?.statusCode;
+  const candidate = value?.status ?? value?.statusCode;
+  const status = typeof candidate === 'number' && Number.isInteger(candidate) && candidate >= 400 && candidate <= 599 ? candidate : undefined;
   return new ProviderError(provider, status ? `HTTP_${status}` : 'REQUEST_FAILED',
     `${provider} request failed${status ? ` (HTTP ${status})` : ''}. Check server-side configuration and provider access.`);
 }
@@ -31,6 +33,6 @@ export async function pollUntil<T>(read: () => Promise<T>, accept: (value: T) =>
 }
 
 export function boundedText(value: string, max = 16_384): string {
-  const redacted = value.replace(/\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+\b|\bwhsec_[A-Za-z0-9]+\b|\bgsk_[A-Za-z0-9]+\b/g, '[REDACTED]');
+  const redacted = redactDiagnosticText(value);
   return redacted.length > max ? `${redacted.slice(0, max)}\n[output truncated]` : redacted;
 }

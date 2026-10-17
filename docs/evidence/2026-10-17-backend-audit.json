@@ -1,0 +1,51 @@
+{
+  "checkedAt": "2026-10-17T21:59:15Z",
+  "scope": "Offline backend audit and read-only saved checkpoint verification; no fresh provider assertions",
+  "checks": {
+    "typecheck": "passed",
+    "backendTests": 37,
+    "newRegressions": 12,
+    "productionFrontendAPIIntegration": "passed",
+    "trackedCredentialScan": {
+      "files": 78,
+      "reachableHistoricalBlobs": 106,
+      "privateValuesCompared": 10,
+      "findings": 0
+    },
+    "savedCheckpoint": {
+      "runs": 4,
+      "passedRuns": 3,
+      "activeRuns": 0,
+      "cleanupPending": 0,
+      "artifacts": 4,
+      "allHashesMatch": true,
+      "passingChecksAllPhases": 13,
+      "freshClockVerificationChecks": 7,
+      "recordedSignedEvents": true,
+      "recordedDistinctInvoices": true
+    },
+    "preparedFileCredentialScan": {
+      "files": 19,
+      "findings": 0,
+      "privateValuesCompared": 10
+    }
+  },
+  "usage": {
+    "liveRuns": 0,
+    "modelCalls": 0,
+    "sandboxCreations": 0,
+    "providerCalls": 0
+  },
+  "unresolved": [
+    "Shared exposed CreateOS credential requires coordinated rotation; no revocation performed",
+    "Unknown creation responses require private operator resource discovery/reconciliation",
+    "Persistent public hosting requires verified SQLite-compatible storage",
+    "Account credit balances remain unknown"
+  ],
+  "limitations": [
+    "Offline cancellation and recovery tests do not establish live cancellation or cloud restart behavior",
+    "Historical allowance counters are not current credits",
+    "Current frontend build/API smoke does not repeat the prior real browser repair"
+  ],
+  "runningServicesRestarted": false
+}

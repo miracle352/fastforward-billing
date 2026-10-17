@@ -60,5 +60,5 @@ try {
  assert.ok(proof.baselineMismatchObserved);assert.ok(models.length>=1&&models.length<=3);assert.ok(['baseline','verification'].every(phase=>proof.signedEventCounts.some(e=>e.phase===phase&&e.count>0)));
  assert.ok(proof.freshStripeObjectsObserved);assert.ok(phases.every(p=>p.invoiceIdentity.every(i=>i.invoiceChanged)));
 } catch(error) {
- console.error(JSON.stringify({operation:'bounded-real-recheck',failed:true,message:error instanceof assert.AssertionError?'An observed verification condition did not pass.':String(error.message).slice(0,240),privateRunTracked:!!runId}));process.exitCode=1;
+ console.error(JSON.stringify({operation:'bounded-real-recheck',failed:true,message:error instanceof assert.AssertionError?'An observed verification condition did not pass.':'The bounded verification could not complete; inspect the private saved checkpoint.',privateRunTracked:!!runId}));process.exitCode=1;
 }

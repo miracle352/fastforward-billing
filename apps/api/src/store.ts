@@ -31,6 +31,9 @@ export class RunStore {
         record TEXT NOT NULL, worker_id TEXT, lease_token INTEGER NOT NULL DEFAULT 0, lease_expires TEXT);
       CREATE INDEX IF NOT EXISTS runs_status ON runs(status, created_at);
       CREATE INDEX IF NOT EXISTS runs_owner ON runs(owner_id, created_at);
+      CREATE TABLE IF NOT EXISTS run_requests(
+        owner_hash TEXT NOT NULL, key_hash TEXT NOT NULL, input_hash TEXT NOT NULL,
+        run_id TEXT NOT NULL REFERENCES runs(id), PRIMARY KEY(owner_hash,key_hash));
       CREATE TABLE IF NOT EXISTS events(
         id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL REFERENCES runs(id),
         created_at TEXT NOT NULL, kind TEXT NOT NULL, message TEXT NOT NULL, data TEXT);
@@ -90,8 +93,20 @@ export class RunStore {
     const row = this.db.prepare("SELECT * FROM runs WHERE status NOT IN ('passed','failed','blocked','cancelled','interrupted') ORDER BY created_at LIMIT 1").get() as Row | undefined;
     return row ? this.parse(row) : null;
   }
-  createRun(ownerId: string, scenarios: Scenario[], limits: { globalDailyLimit?: number; ownerDailyLimit?: number } = {}): RunRecord {
+  getRunForRequest(ownerId: string, key: string, scenarios: Scenario[]): RunRecord | null {
+    const row = this.db.prepare('SELECT * FROM run_requests WHERE owner_hash=? AND key_hash=?')
+      .get(hash(ownerId), hash(key)) as Row | undefined;
+    if (!row) return null;
+    if (row.input_hash !== hash(JSON.stringify([...new Set(scenarios)].sort())))
+      throw new StoreError('IDEMPOTENCY_CONFLICT', 'This request key was already used for different scenarios.');
+    return this.getRunForOwner(String(row.run_id), ownerId);
+  }
+  createRun(ownerId: string, scenarios: Scenario[], limits: { globalDailyLimit?: number; ownerDailyLimit?: number; idempotencyKey?: string } = {}): RunRecord {
     return this.atomic(() => {
+      if (limits.idempotencyKey) {
+        const saved = this.getRunForRequest(ownerId, limits.idempotencyKey, scenarios);
+        if (saved) return saved;
+      }
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const count = (sql: string, ...params: string[]) => Number((this.db.prepare(sql).get(...params) as Row).count);
       if (count('SELECT COUNT(*) AS count FROM runs WHERE created_at>?', cutoff) >= (limits.globalDailyLimit ?? 6))
@@ -108,7 +123,9 @@ export class RunStore {
       };
       this.db.prepare('INSERT INTO runs(id,owner_id,status,created_at,record) VALUES(?,?,?,?,?)')
         .run(run.id, hash(ownerId), run.status, timestamp, JSON.stringify(run));
-      this.insertEvent(run.id, { kind: 'status', message: 'Test queued. No success has been observed yet.' });
+      if (limits.idempotencyKey) this.db.prepare('INSERT INTO run_requests(owner_hash,key_hash,input_hash,run_id) VALUES(?,?,?,?)')
+        .run(hash(ownerId), hash(limits.idempotencyKey), hash(JSON.stringify([...new Set(scenarios)].sort())), run.id);
+      this.insertEvent(run.id, { kind: 'status', message: 'Test queued. No success has been observed yet.', data: { status: 'queued' } });
       return run;
     });
   }
@@ -126,7 +143,7 @@ export class RunStore {
       run.status = 'provisioning'; run.phase = 'Preparing real test environments'; run.updatedAt = now();
       this.db.prepare('UPDATE runs SET worker_id=?,lease_token=?,lease_expires=? WHERE id=?')
         .run(workerId, leaseToken, new Date(Date.now() + leaseMs).toISOString(), run.id);
-      this.write(run); this.insertEvent(run.id, { kind: 'status', message: run.phase });
+      this.write(run); this.insertEvent(run.id, { kind: 'status', message: run.phase, data: { status: 'provisioning' } });
       return { run, lease: { workerId, leaseToken } };
     });
   }
@@ -158,6 +175,7 @@ export class RunStore {
     return this.atomic(() => {
       const run = this.getRunForOwner(runId, ownerId); if (!run) return null;
       if (terminal.has(run.status) || run.status === 'cancel_requested') return run;
+      if (run.status !== 'queued') this.db.prepare("INSERT INTO metadata(run_id,key,value) VALUES(?,'cancellation_requested','true') ON CONFLICT(run_id,key) DO UPDATE SET value='true'").run(runId);
       // Queued jobs have no process or sandbox to terminate.
       run.status = run.status === 'queued' ? 'cancelled' : 'cancel_requested';
       run.phase = run.status === 'cancelled' ? 'Cancelled before execution' : 'Cancellation requested; waiting for cleanup';
@@ -169,6 +187,7 @@ export class RunStore {
     return this.atomic(() => {
       const run = this.parse(this.assertLease(runId, lease));
       if (run.status !== 'cancel_requested') throw new StoreError('NOT_CANCELLING', 'No cancellation is pending.');
+      if (this.getMetadata(runId, 'cleanup_pending') === true) throw new StoreError('CLEANUP_PENDING', 'Cleanup must be reconciled before cancellation is complete.');
       run.status = 'cancelled'; run.phase = 'Cancelled; worker confirmed cleanup'; run.updatedAt = now();
       this.write(run); this.insertEvent(runId, { kind: 'cleanup', message: run.phase }); return run;
     });
@@ -190,14 +209,27 @@ export class RunStore {
   getCleanupPending(): RunRecord[] {
     return (this.db.prepare("SELECT r.* FROM runs r JOIN metadata m ON m.run_id=r.id WHERE m.key='cleanup_pending' AND m.value='true'").all() as Row[]).map(row => this.parse(row));
   }
-  confirmCleanup(runId: string): void {
+  confirmCleanup(runId: string, resources?: Array<{kind: string; id: string; cleaned?: boolean}>): void {
     this.atomic(() => {
       const run = this.getRun(runId);
       if (!run || !terminal.has(run.status)) throw new StoreError('NOT_TERMINAL', 'Recovery cleanup can only be confirmed for a stopped job.');
+      if (this.getMetadata(runId, 'cleanup_pending') !== true) return;
+      const intent = this.getMetadata<{kind: string; index: number}>(runId, 'allocation_pending');
+      if (intent && (!resources || !(resources[intent.index]?.kind === intent.kind ||
+        (intent.kind === 'process' && resources.some(r => r.kind === 'sandbox' && r.cleaned)))))
+        throw new StoreError('ALLOCATION_UNCERTAIN', 'A provider creation request still requires resource reconciliation.');
+      if (resources?.some(r => !r.cleaned)) throw new StoreError('CLEANUP_PENDING', 'Every tracked resource must be confirmed clean.');
+      if (resources) this.db.prepare("INSERT INTO metadata(run_id,key,value) VALUES(?,'resources',?) ON CONFLICT(run_id,key) DO UPDATE SET value=excluded.value").run(runId, JSON.stringify(resources));
+      this.db.prepare("UPDATE metadata SET value='null' WHERE run_id=? AND key='allocation_pending'").run(runId);
       this.db.prepare("UPDATE metadata SET value='false' WHERE run_id=? AND key='cleanup_pending'").run(runId);
-      this.insertEvent(runId, { kind: 'cleanup', message: 'Trusted recovery worker confirmed previous environment cleanup.' });
+      if (this.getMetadata(runId, 'cancellation_requested') === true) {
+        run.status = 'cancelled'; run.phase = 'Cancelled; recovery confirmed cleanup'; run.updatedAt = now(); this.write(run);
+      }
+      this.insertEvent(runId, { kind: 'cleanup', message: 'Trusted recovery worker confirmed previous environment cleanup.', data: { status: run.status } });
     });
   }
+  assertRunLease(runId: string, lease: Lease): void { this.assertLease(runId, lease); }
+
   setMetadata(runId: string, key: string, value: unknown, lease: Lease) {
     this.atomic(() => { this.assertLease(runId, lease); this.db.prepare('INSERT INTO metadata(run_id,key,value) VALUES(?,?,?) ON CONFLICT(run_id,key) DO UPDATE SET value=excluded.value').run(runId, key, JSON.stringify(value)); });
   }

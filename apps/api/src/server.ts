@@ -71,13 +71,20 @@ export async function createServer(options: ServerOptions): Promise<FastifyInsta
     const current = authorize(request, reply, true); if (!current) return;
     const input = CreateRun.safeParse(request.body);
     if (!input.success) return error(reply, 400, 'INPUT_INVALID', 'Choose one or both supported billing scenarios.');
-    const readiness = await options.readiness();
-    if (!readiness.ready) return error(reply, 503, 'SETUP_NEEDED', 'A real test cannot start until the listed services are ready.', readiness.blockers);
+    const key = request.headers['idempotency-key'];
+    if (key !== undefined && (typeof key !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(key)))
+      return error(reply, 400, 'IDEMPOTENCY_INVALID', 'Use an 8–128 character request key containing letters, numbers, dots, colons, underscores or dashes.');
     try {
-      const run = options.store.createRun(current.id, input.data.scenarios, options);
+      if (key) {
+        const saved = options.store.getRunForRequest(current.id, key, input.data.scenarios);
+        if (saved) return reply.code(202).header('Idempotency-Replayed','true').send({ run: saved });
+      }
+      const readiness = await options.readiness();
+      if (!readiness.ready) return error(reply, 503, 'SETUP_NEEDED', 'A real test cannot start until the listed services are ready.', readiness.blockers);
+      const run = options.store.createRun(current.id, input.data.scenarios, { ...options, idempotencyKey: key });
       return reply.code(202).send({ run });
     } catch (caught) {
-      if (caught instanceof StoreError) return error(reply, ['BUSY', 'CLEANUP_PENDING'].includes(caught.code) ? 409 : 429, caught.code, caught.message);
+      if (caught instanceof StoreError) return error(reply, ['BUSY', 'CLEANUP_PENDING', 'IDEMPOTENCY_CONFLICT'].includes(caught.code) ? 409 : 429, caught.code, caught.message);
       throw caught;
     }
   });

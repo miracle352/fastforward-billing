@@ -1,4 +1,5 @@
-import { ProviderError, safeProviderError } from './common.js';
+import { credentialValues } from '../privacy.js';
+import { boundedText, ProviderError, safeProviderError } from './common.js';
 
 export interface RepairRequest {
   source: string; contract: string; failures: string[];
@@ -76,9 +77,11 @@ export class GroqCodeProvider {
       catch { throw new ProviderError('groq', 'INVALID_OUTPUT', 'The model did not return the required JSON repair.'); }
       if (typeof decoded.source !== 'string' || !decoded.source.trim() || decoded.source.length > 100_000
         || typeof decoded.explanation !== 'string' || decoded.explanation.length > 2000
-        || /(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{12,}|gsk_[A-Za-z0-9]{12,}|whsec_[A-Za-z0-9]{12,}/.test(decoded.source))
+        || /(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{12,}|gsk_[A-Za-z0-9]{12,}|whsec_[A-Za-z0-9]{12,}|skp_[A-Za-z0-9_-]{12,}/.test(decoded.source))
         throw new ProviderError('groq', 'INVALID_SOURCE', 'The generated source is missing, oversized or contains a credential-like value.');
-      return { source: decoded.source, explanation: decoded.explanation, model: this.config.model, call: this.calls, rateLimits: this.rateLimits,
+      if (credentialValues(process.env).some(value => (decoded.source as string).includes(value)))
+        throw new ProviderError('groq', 'INVALID_SOURCE', 'The generated source contains a configured credential value.');
+      return { source: decoded.source, explanation: boundedText(decoded.explanation, 2000), model: this.config.model, call: this.calls, rateLimits: this.rateLimits,
         usage: { promptTokens: data.usage?.prompt_tokens ?? 0, completionTokens: data.usage?.completion_tokens ?? 0,
           totalTokens: data.usage?.total_tokens ?? 0 } };
     } catch (error) { throw safeProviderError('groq', error); }

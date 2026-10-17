@@ -1,21 +1,30 @@
 import {execFileSync} from 'node:child_process';
 import {existsSync,readFileSync} from 'node:fs';
+import {parseEnv} from 'node:util';
+import {credentialValues} from '../apps/api/src/privacy.ts';
 
-const sensitive=[];
-if(existsSync('.env')) for(const line of readFileSync('.env','utf8').split(/\r?\n/)){
-  const match=line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-  if(!match || !/(?:KEY|SECRET|PASSWORD|TOKEN)/.test(match[1])) continue;
-  let value=match[2].trim();
-  if(value.startsWith('"')){try{value=JSON.parse(value);}catch{throw new Error('Invalid private env quoting.');}}
-  else if(value.startsWith("'")&&value.endsWith("'"))value=value.slice(1,-1);
-  if(typeof value==='string'&&value.length>=12)sensitive.push({name:match[1],value});
-}
-const files=execFileSync('git',['diff','--cached','--name-only','--diff-filter=ACM'],{encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
+try {
+const environment={...process.env,...(existsSync('.env')?parseEnv(readFileSync('.env','utf8')):{})};
+const sensitive=credentialValues(environment);
+const args=process.argv.slice(2);const history=args.includes('--history');const tracked=args.includes('--tracked');
+const git=(args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:50_000_000,stdio:['pipe','pipe','pipe']});
+const files=git(tracked?['ls-files']:['diff','--cached','--name-only','--diff-filter=ACM']).trim().split(/\r?\n/).filter(Boolean);
 const findings=[];
 for(const path of files){
-  if(/(^|\/)(\.env(?:\..*)?|\.local|vault)(\/|$)/.test(path)&&path!=='.env.example')findings.push({path,issue:'Private path staged'});
-  const content=execFileSync('git',['show',`:${path}`],{encoding:'utf8',maxBuffer:5_000_000});
-  for(const secret of sensitive)if(content.includes(secret.value))findings.push({path,issue:`Saved ${secret.name} value found`});
+ if(/(^|\/)(\.env(?:\..*)?|\.local|vault)(\/|$)/.test(path)&&path!=='.env.example')findings.push({path,issue:'Private path included'});
+ const content=tracked&&existsSync(path)?readFileSync(path,'utf8'):git(['show',`:${path}`]);
+ if(sensitive.some(value=>content.includes(value)||content.includes(JSON.stringify(value).slice(1,-1))))findings.push({path,issue:'Configured credential value found'});
 }
-console.log(JSON.stringify({stagedFiles:files.length,knownLocalSecretsChecked:sensitive.length,findings},null,2));
+let historicalBlobsScanned=0;
+if(history){
+ const ids=[...new Set(git(['rev-list','--objects','--all']).trim().split(/\r?\n/).map(line=>line.split(' ')[0]).filter(Boolean))];
+ const types=execFileSync('git',['cat-file','--batch-check=%(objectname) %(objecttype)'],{input:ids.join('\n')+'\n',encoding:'utf8',maxBuffer:50_000_000,stdio:['pipe','pipe','pipe']});
+ for(const line of types.trim().split(/\r?\n/)){
+  const [id,type]=line.split(' ');if(type!=='blob')continue;historicalBlobsScanned++;
+  const content=git(['cat-file','blob',id]);if(sensitive.some(value=>content.includes(value)||content.includes(JSON.stringify(value).slice(1,-1))))findings.push({scope:'history',issue:'Configured credential in a reachable historical blob'});
+ }
+}
+console.log(JSON.stringify({filesScanned:files.length,scope:tracked?'tracked':'staged',knownCredentialValuesChecked:sensitive.length,historicalBlobsScanned,findings},null,2));
 if(findings.length)process.exitCode=1;
+
+} catch { console.error(JSON.stringify({auditFailed:true,reason:'Credential audit could not complete; private error details were suppressed.'})); process.exitCode=1; }

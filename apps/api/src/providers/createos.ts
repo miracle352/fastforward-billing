@@ -61,12 +61,12 @@ export class CreateOSProvider {
         throw new ProviderError('createos', 'EGRESS_MISMATCH', 'Observed sandbox networking policy differs from the required allowlist.');
       return sandbox;
     } catch (error) {
-      let cleanupConfirmed = !sandbox;
+      const safe = safeProviderError('createos', error);
+      let cleanupConfirmed = !sandbox && /^HTTP_(400|401|403|404|409|422|429)$/.test(safe.code);
       if (sandbox) {
         try { await sandbox.destroy(); await sandbox.waitUntilDestroyed({ timeoutMs: 60_000 }); cleanupConfirmed = true; }
         catch { cleanupConfirmed = false; }
       }
-      const safe = safeProviderError('createos', error);
       throw new ProviderError('createos', safe.code, safe.message,
         { sandboxId: sandbox?.id ?? null, cleanupConfirmed });
     }

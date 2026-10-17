@@ -11,6 +11,7 @@ import { CreateOSProvider, GroqCodeProvider, StripeBillingProvider, ProviderErro
   type FixtureResource, type StripeFixtureBundle, type StripeObservation } from './providers/index.js';
 import { evaluateDenied, evaluateReport, failedChecks, type ReportObservation, type ReportPerson } from './evaluator.js';
 
+export type AllocationIntent = { kind: Resource['kind']; index: number };
 export type Resource = { kind: FixtureResource['kind'] | 'sandbox' | 'process'; id: string; cleaned?: boolean };
 export type Evidence = {
   events: Array<{ id: string; type: string; object_id: string; customer_id: string | null; stripe_status: string | null }>;
@@ -184,7 +185,9 @@ export async function cleanupResources(resources: Resource[], stripe: StripeBill
       continue;
     }
     if (kind === 'process') {
-      if (resources.filter(item => item.kind === 'sandbox').every(item => item.cleaned)) resource.cleaned = true;
+      const parents = resources.filter(item => item.kind === 'sandbox');
+      if (parents.length && parents.every(item => item.cleaned)) resource.cleaned = true;
+      else failures.push('Process cleanup requires its tracked sandbox to be destroyed.');
       options.onUpdate?.();
       continue;
     }
@@ -217,12 +220,15 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
   let summary = 'No successful repair was observed.';
   let errorMessage: string | undefined;
   const persist = () => store.setMetadata(run.id, 'resources', resources, lease);
-  const track = (resource: Resource) => { resources.push(resource); persist(); };
+  const prepareAllocation = (kind: Resource['kind']) => {
+    assertActive(); store.setMetadata(run.id, 'allocation_pending', { kind, index: resources.length }, lease);
+  };
+  const track = (resource: Resource) => { resources.push(resource); persist(); store.setMetadata(run.id, 'allocation_pending', null, lease); };
   const event = (kind: 'status' | 'observation' | 'model' | 'execution' | 'check' | 'cleanup' | 'error', message: string, data?: Record<string, unknown>) => {
     store.appendEvent(run.id, { kind, message, data }, lease);
   };
   const assertActive = () => {
-    signal.throwIfAborted();
+    signal.throwIfAborted(); store.assertRunLease(run.id, lease);
     if (store.getRun(run.id)?.status === 'cancel_requested') { abort.abort(new Error('Cancellation requested.')); signal.throwIfAborted(); }
   };
   const heart = setInterval(() => {
@@ -241,12 +247,14 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
     ]);
     const controlToken = token();
     store.setMetadata(run.id, 'trustedAppSha256', sha(trustedApp), lease);
+    persist(); prepareAllocation('sandbox');
     sandbox = await createos.createRunSandbox(run.id, { STRIPE_READONLY_KEY: config.stripe.readonlyKey }, receipt => {
       track({ kind: 'sandbox', id: receipt.sandboxId }); store.updateRun(run.id, lease, { sandboxId: receipt.sandboxId });
     });
     assertActive();
     await createos.uploadFiles(sandbox, { [`${ROOT}/app.py`]: trustedApp, [`${ROOT}/billing.py`]: baselineSource,
       [`${ROOT}/validate.py`]: VALIDATOR, [`${ROOT}/private-config.json`]: JSON.stringify({ controlToken, webhookSecret: '', fixtureRunId: `${run.id}-unconfigured` }) });
+    prepareAllocation('process');
     const process = await createos.startProcess(sandbox, { cmd: 'python3', args: ['-B', '-u', `${ROOT}/app.py`], cwd: ROOT,
       env: { STRIPE_READONLY_KEY: config.stripe.readonlyKey } });
     track({ kind: 'process', id: process.processId });
@@ -256,6 +264,7 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
     await waitForPreviewHealth(previewUrl, signal);
     const denied = await http(previewUrl, '/evidence', signal);
     if (denied.status !== 401) throw new Error('Sample application control evidence was not protected.');
+    prepareAllocation('webhook');
     const hook = await stripe.createWebhook(new URL('/webhook', previewUrl).toString(), run.id);
     track({ kind: 'webhook', id: hook.id });
     event('observation', 'Real HTTPS sample application and protected control endpoint observed.', { sandboxId: sandbox.id, webhookEndpointId: hook.id });
@@ -268,7 +277,7 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
       await createos.uploadFiles(sandbox!, { [`${ROOT}/private-config.json`]: JSON.stringify({ controlToken, webhookSecret: hook.secret, fixtureRunId }) });
       await controlled(previewUrl, '/_reset', controlToken, signal, {});
       const bundle: StripeFixtureBundle = await stripe.createFixtures({ runId: fixtureRunId, phase: name, scenarios: run.scenarios,
-        onResource: resource => track(resource) });
+        onResource: resource => track(resource), beforeResource: kind => prepareAllocation(kind) });
       await Promise.all(bundle.fixtures.map(fixture => stripe.verifyReadonlyFixture(fixture)));
       const people: ReportPerson[] = bundle.fixtures.map(fixture => ({ customerId: fixture.customerId,
         scenario: fixture.scenario, token: token(), report: `Private ${fixture.scenario} report ${randomUUID()}` }));
@@ -314,7 +323,7 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
         response: await http(previewUrl, `/report?customer=${encodeURIComponent(otherId)}`, signal, { headers: { Authorization: `Bearer ${first.token}` } }), expectedStatus: 403 }));
       await ensureTrustedSource();
       addChecks(observed);
-      event('observation', 'Stripe records and actual report endpoints independently observed.', { phase: name,
+      event('observation', 'Stripe records and actual report endpoints independently observed.', { phase: name, attempt,
         observations: observations.map(item => ({ ...item })), signedEventCount: (await evidence()).events.length });
       return observed;
       } finally {
@@ -377,6 +386,10 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
       limitation: 'Synthetic sample application and Stripe test objects only. Physical time and production billing were not changed.' }, null, 2) });
   } catch (error) {
     if (error instanceof StoreError && error.code === 'LEASE_LOST') return;
+    if (error instanceof ProviderError && error.provider === 'createos' && /^HTTP_(400|401|403|404|409|422|429)$/.test(error.code)
+      && store.getMetadata<AllocationIntent>(run.id, 'allocation_pending')?.kind === 'sandbox') {
+      store.setMetadata(run.id, 'allocation_pending', null, lease);
+    }
     desired = error instanceof ProviderError ? 'blocked' : 'failed';
     errorMessage = error instanceof ProviderError ? error.message : signal.aborted ? 'Execution stopped by cancellation, shutdown or its configured deadline.' : 'The real provider or sample-app verification did not complete. Inspect the saved bounded activity record.';
     try { event('error', errorMessage, { modelRateLimits: groq.rateLimits }); } catch { /* A fenced worker must not write. */ }
@@ -384,6 +397,8 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
     // Cleanup deliberately has its own bounded provider calls, independent of an aborted work signal.
     try {
       const failures = await cleanupResources(resources, stripe, createos, { onUpdate: persist });
+      if (allocationUncertain(resources, store.getMetadata<AllocationIntent>(run.id, 'allocation_pending')))
+        failures.push('A provider creation request has no confirmed receipt; resource reconciliation is required.');
       if (failures.length) {
         store.setMetadata(run.id, 'cleanup_pending', true, lease);
         event('cleanup', 'Cleanup is not confirmed. Another test is blocked until resource reconciliation.', { failures });
@@ -400,6 +415,24 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
   }
 }
 
+/** An unknown creation response must never be mistaken for an empty environment. */
+export function allocationUncertain(resources: Resource[], intent: AllocationIntent | null): boolean {
+  if (!intent) return false;
+  if (resources[intent.index]?.kind === intent.kind) return false;
+  return !(intent.kind === 'process' && resources.some(r => r.kind === 'sandbox' && r.cleaned));
+}
+export async function reconcileStoppedRun(store: RunStore, run: RunRecord, stripe: StripeBillingProvider, createos: CreateOSProvider): Promise<boolean> {
+  if (!['interrupted','failed','blocked','cancelled','passed'].includes(run.status)) return false;
+  const saved = store.getMetadata<Resource[]>(run.id, 'resources');
+  if (saved === null && !run.sandboxId) return false; // Legacy/unknown state needs operator reconciliation.
+  const resources = saved ?? [];
+  if (run.sandboxId && !resources.some(r => r.kind === 'sandbox' && r.id === run.sandboxId)) resources.push({kind:'sandbox',id:run.sandboxId});
+  const failures = await cleanupResources(resources, stripe, createos);
+  if (failures.length || allocationUncertain(resources, store.getMetadata<AllocationIntent>(run.id, 'allocation_pending'))) return false;
+  store.confirmCleanup(run.id, resources);
+  return true;
+}
+
 /** Long-lived worker, independent of the initiating browser or HTTP request. */
 export async function runWorker(config: Config, store: RunStore, signal: AbortSignal) {
   const workerId = `worker-${randomUUID()}`;
@@ -409,12 +442,7 @@ export async function runWorker(config: Config, store: RunStore, signal: AbortSi
       const pending = store.getCleanupPending();
       if (pending.length && config.stripe.controllerKey && config.stripe.readonlyKey && config.createos.apiKey) {
         const stripe = new StripeBillingProvider(config.stripe); const createos = new CreateOSProvider(config.createos);
-        for (const run of pending) {
-          const resources = store.getMetadata<Resource[]>(run.id, 'resources') ?? [];
-          if (run.sandboxId && !resources.some(item => item.kind === 'sandbox' && item.id === run.sandboxId)) resources.push({ kind: 'sandbox', id: run.sandboxId });
-          const failures = await cleanupResources(resources, stripe, createos);
-          if (!failures.length) store.confirmCleanup(run.id);
-        }
+        for (const run of pending) await reconcileStoppedRun(store, run, stripe, createos);
       }
       if (!store.getCleanupPending().length && (await getReadiness(config, store)).ready) {
         const claimed = store.claimNext(workerId);

@@ -73,7 +73,8 @@ export class StripeBillingProvider {
   }
 
   async createFixtures(input: { runId: string; phase: 'baseline' | 'verification'; scenarios: BillingScenario[];
-    onResource?: (resource: FixtureResource) => void | Promise<void> }): Promise<StripeFixtureBundle> {
+    onResource?: (resource: FixtureResource) => void | Promise<void>;
+    beforeResource?: (kind: FixtureResource['kind']) => void | Promise<void> }): Promise<StripeFixtureBundle> {
     if (!input.scenarios.length || input.scenarios.length > 2 || new Set(input.scenarios).size !== input.scenarios.length)
       throw new ProviderError('stripe', 'INVALID_SCENARIOS', 'Choose one or both distinct supported scenarios.');
     const prefix = `ff-${input.runId}-${input.phase}`;
@@ -85,24 +86,29 @@ export class StripeBillingProvider {
       resources.push({ kind, id }); await input.onResource?.({ kind, id });
     };
     try {
+      await input.beforeResource?.('product');
       const product = await this.controller.products.create({ name: `Fastforward sample report ${input.runId}`, metadata },
         { idempotencyKey: `${prefix}-product` });
       bundle.productId = product.id; await track('product', product.id);
+      await input.beforeResource?.('price');
       const price = await this.controller.prices.create({ product: product.id, currency: 'usd', unit_amount: 1900,
         recurring: { interval: 'month' }, metadata }, { idempotencyKey: `${prefix}-price` });
       bundle.priceId = price.id; await track('price', price.id);
       for (const scenario of input.scenarios) {
         const initialTime = Math.floor(Date.now() / 1000);
+        await input.beforeResource?.('clock');
         const clock = await this.controller.testHelpers.testClocks.create({ frozen_time: initialTime, name: `${prefix}-${scenario}` },
           { idempotencyKey: `${prefix}-${scenario}-clock` });
         createdClocks.push(clock.id); await track('clock', clock.id);
         const paymentMethod = scenario === 'healthy_renewal' ? 'pm_card_visa' : 'pm_card_chargeCustomerFail';
+        await input.beforeResource?.('customer');
         const customer = await this.controller.customers.create({ test_clock: clock.id,
           name: scenario === 'healthy_renewal' ? 'Maya — healthy renewal' : 'Leo — trial payment failure',
           payment_method: paymentMethod, invoice_settings: { default_payment_method: paymentMethod }, metadata,
         }, { idempotencyKey: `${prefix}-${scenario}-customer` });
         await track('customer', customer.id);
         const trialEnd = initialTime + 7 * 86400;
+        await input.beforeResource?.('subscription');
         const subscription = await this.controller.subscriptions.create({ customer: customer.id,
           items: [{ price: price.id }], collection_method: 'charge_automatically', metadata,
           ...(scenario === 'trial_payment_failure' ? { trial_end: trialEnd } : {}),
