@@ -1,5 +1,22 @@
 {
-  "version": 1,
-  "providers": {},
-  "resources": {}
+  "version": 2,
+  "providers": {
+    "createos": {
+      "name": "createos"
+    }
+  },
+  "resources": {
+    "carry-createos-free": {
+      "livemode": true,
+      "name": "carry-createos-free",
+      "providerName": "createos",
+      "serviceId": "free"
+    },
+    "fastforward-runtime": {
+      "livemode": true,
+      "name": "fastforward-runtime",
+      "providerName": "createos",
+      "serviceId": "project"
+    }
+  }
 }

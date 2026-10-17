@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assertStripeTestKey, isAdvancedObservation, type StripeFixture, type StripeObservation } from '../src/providers/stripe.js';
-import { assertRestrictedEgress } from '../src/providers/createos.js';
+import { assertRestrictedEgress, sandboxNameForRun } from '../src/providers/createos.js';
 import { GroqCodeProvider } from '../src/providers/groq.js';
 import { safeProviderError, boundedText } from '../src/providers/common.js';
 
@@ -18,6 +18,14 @@ test('open networking is rejected before a generated-code sandbox can be created
   for (const rules of [[],['*'],['0.0.0.0/0'],['::/0'],['example.org:443']])
     assert.throws(() => assertRestrictedEgress(rules));
   assert.doesNotThrow(() => assertRestrictedEgress(['api.stripe.com:443']));
+});
+
+test('UUID run names satisfy the observed regional sandbox naming limit', () => {
+  const name = sandboxNameForRun('454d8eca-69eb-4e34-9f6a-0edf99502191');
+  assert.ok(name.length <= 22);
+  assert.match(name, /^[a-z0-9-]+$/);
+  assert.notEqual(name, sandboxNameForRun('145d8eca-69eb-4e34-9f6a-0edf99502191'));
+  assert.throws(() => sandboxNameForRun(''));
 });
 
 test('healthy renewal requires a newly paid invoice rather than the initial successful charge', () => {

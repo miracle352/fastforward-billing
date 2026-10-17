@@ -7,6 +7,13 @@ export interface ExecutionReceipt {
 }
 export interface SandboxReceipt { sandboxId: string; status: string; egress: string[]; observedAt: string; }
 
+/** The regional control plane accepts at most 22 characters, including the prefix. */
+export function sandboxNameForRun(runId: string): string {
+  const suffix = runId.replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 19);
+  if (!suffix) throw new ProviderError('createos', 'RUN_ID_REQUIRED', 'A run identifier is required for sandbox creation.');
+  return `ff-${suffix}`;
+}
+
 export function assertRestrictedEgress(egress: string[]): void {
   if (!Array.isArray(egress) || !egress.length || egress.some(rule => !rule.trim() || rule.trim() === '*'
     || rule.trim() === '0.0.0.0/0' || rule.trim() === '::/0'))
@@ -42,7 +49,7 @@ export class CreateOSProvider {
       throw new ProviderError('createos', 'SECRET_BOUNDARY', 'Controller/model/platform secrets cannot be passed into generated-code sandboxes.');
     let sandbox: Sandbox | undefined;
     try {
-      sandbox = await this.client.createSandbox({ name: `fastforward-${runId}`,
+      sandbox = await this.client.createSandbox({ name: sandboxNameForRun(runId),
         shape: this.config.shape ?? 's-1vcpu-1gb', rootfs: this.config.rootfs ?? 'devbox:1',
         egress: this.config.egress, envs: env, auto_pause_after_seconds: 600,
       }, { wait: false, timeoutMs: 30_000 });

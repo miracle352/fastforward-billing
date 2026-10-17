@@ -163,7 +163,11 @@ class App(BaseHTTPRequestHandler):
                     return self.send(200, {"received": True, "duplicate": True})
                 obj = event["data"]["object"]
                 # Ignore unrelated account activity. This is a dedicated, run-marked fixture.
-                if obj.get("metadata", {}).get("run_id") != settings()["fixtureRunId"]:
+                metadata = obj.get("metadata") or {}
+                if event["type"].startswith("invoice."):
+                    details = (obj.get("parent") or {}).get("subscription_details") or obj.get("subscription_details") or {}
+                    metadata = details.get("metadata") or {}
+                if metadata.get("run_id") != settings()["fixtureRunId"]:
                     return self.send(200, {"received": True, "ignored": True})
                 db.set_authorizer(access_authorizer)
                 try:

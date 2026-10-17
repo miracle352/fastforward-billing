@@ -92,6 +92,61 @@ async function http(url: string, path: string, signal: AbortSignal, init: Reques
   let body: unknown = null; try { body = JSON.parse(raw); } catch { /* Invalid data fails the fixed evaluator. */ }
   return { status: response.status, body };
 }
+
+/** Guest TCP readiness does not establish public ingress/TLS readiness. Never relax HTTPS verification. */
+export async function waitForPreviewHealth(url: string, signal: AbortSignal, options: {
+  timeoutMs?: number; intervalMs?: number; fetcher?: typeof fetch;
+} = {}): Promise<void> {
+  if (new URL(url).protocol !== 'https:') throw new ProviderError('createos', 'PREVIEW_HTTPS_REQUIRED', 'Public preview health requires HTTPS.');
+  const timeoutMs = options.timeoutMs ?? 60_000;
+  const intervalMs = options.intervalMs ?? 1500;
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 1 || timeoutMs > 60_000 || !Number.isFinite(intervalMs) || intervalMs < 0)
+    throw new ProviderError('createos', 'PREVIEW_WAIT_BOUNDS', 'Public preview readiness requires a bounded wait of at most 60 seconds.');
+  const deadline = AbortSignal.timeout(timeoutMs);
+  const waitSignal = AbortSignal.any([signal, deadline]);
+  const transient = (error: unknown): boolean => {
+    const value = error as { name?: string; code?: string; cause?: { code?: string } };
+    const code = value?.cause?.code ?? value?.code;
+    return value?.name === 'TimeoutError' || Boolean(code && [
+      'ECONNREFUSED','ECONNRESET','ENOTFOUND','EAI_AGAIN','ETIMEDOUT','EHOSTUNREACH','ENETUNREACH',
+      'UND_ERR_CONNECT_TIMEOUT','UND_ERR_HEADERS_TIMEOUT','UND_ERR_BODY_TIMEOUT','UND_ERR_SOCKET',
+      // A new ingress certificate can lag routing. Every attempt still performs normal TLS validation.
+      'ERR_TLS_CERT_ALTNAME_INVALID','UNABLE_TO_VERIFY_LEAF_SIGNATURE','UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+    ].includes(code));
+  };
+  try {
+    while (true) {
+      waitSignal.throwIfAborted();
+      try {
+        const response = await (options.fetcher ?? fetch)(new URL('/health', url), {
+          redirect: 'error', signal: AbortSignal.any([waitSignal, AbortSignal.timeout(20_000)]),
+        });
+        if ([502,503,504].includes(response.status)) {
+          await response.body?.cancel();
+        } else {
+          if (response.status !== 200) throw new ProviderError('createos', 'PREVIEW_HEALTH_STATUS', `Public preview health returned HTTP ${response.status}.`);
+          const raw = await response.text();
+          if (raw.length > 128_000) throw new ProviderError('createos', 'PREVIEW_HEALTH_INVALID', 'Public preview health returned an invalid payload.');
+          let value: unknown;
+          try { value = JSON.parse(raw); } catch { throw new ProviderError('createos', 'PREVIEW_HEALTH_INVALID', 'Public preview health returned an invalid payload.'); }
+          const body = value as { ready?: unknown; testMode?: unknown } | null;
+          if (body?.ready !== true || body?.testMode !== true)
+            throw new ProviderError('createos', 'PREVIEW_HEALTH_INVALID', 'Public preview did not confirm the test application is ready.');
+          return;
+        }
+      } catch (error) {
+        waitSignal.throwIfAborted();
+        if (!transient(error)) throw error;
+      }
+      await delay(intervalMs, undefined, { signal: waitSignal });
+    }
+  } catch (error) {
+    signal.throwIfAborted();
+    if (deadline.aborted) throw new ProviderError('createos', 'PREVIEW_HEALTH_TIMEOUT', 'Public HTTPS preview did not become ready within the bounded wait.');
+    throw error;
+  }
+}
+
 async function controlled(url: string, path: string, controlToken: string, signal: AbortSignal, body?: unknown) {
   const result = await http(url, path, signal, { method: body === undefined ? 'GET' : 'POST', headers: {
     'X-Control-Token': controlToken, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -174,13 +229,13 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
     assertActive();
     await createos.uploadFiles(sandbox, { [`${ROOT}/app.py`]: trustedApp, [`${ROOT}/billing.py`]: baselineSource,
       [`${ROOT}/validate.py`]: VALIDATOR, [`${ROOT}/private-config.json`]: JSON.stringify({ controlToken, webhookSecret: '', fixtureRunId: `${run.id}-unconfigured` }) });
-    const process = await createos.startProcess(sandbox, { cmd: 'python3', args: ['-B', '-u', `${ROOT}/app.py`], cwd: ROOT });
+    const process = await createos.startProcess(sandbox, { cmd: 'python3', args: ['-B', '-u', `${ROOT}/app.py`], cwd: ROOT,
+      env: { STRIPE_READONLY_KEY: config.stripe.readonlyKey } });
     track({ kind: 'process', id: process.processId });
     const previewUrl = await createos.preview(sandbox, 8000);
     if (new URL(previewUrl).protocol !== 'https:') throw new Error('A real HTTPS preview is required for signed Stripe webhook delivery.');
     store.updateRun(run.id, lease, { previewUrl });
-    const health = await http(previewUrl, '/health', signal);
-    if (health.status !== 200 || !(health.body as { ready?: boolean })?.ready) throw new Error('The controller could not independently reach the sample application.');
+    await waitForPreviewHealth(previewUrl, signal);
     const denied = await http(previewUrl, '/evidence', signal);
     if (denied.status !== 401) throw new Error('Sample application control evidence was not protected.');
     const hook = await stripe.createWebhook(new URL('/webhook', previewUrl).toString(), run.id);

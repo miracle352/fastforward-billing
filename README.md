@@ -6,7 +6,7 @@ Fastforward is a new CreateOS × Stripe Projects hackathon implementation. It ex
 
 ## Current evidence boundary
 
-Backend implementation and integration are in progress. Read BUILD-STATE.md for observed checks. Provider account access is not a successful repair. No claim is made about arbitrary applications, production safety, all billing paths, or a guaranteed completion time.
+The backend has completed one real repair run: the baseline exposed an access mismatch, one model call produced a handler, CreateOS executed it, and all seven fresh-customer checks passed. Cleanup was confirmed. See [the redacted receipt](docs/evidence/2026-10-17-live-repair.json) and BUILD-STATE.md. Frontend integration and persistent public hosting remain unverified. No claim is made about arbitrary applications, production safety, all billing paths, or a guaranteed completion time.
 
 Only synthetic customers, Stripe TEST resources and simulated billing time are permitted. The sample policy allows access for active/trialing subscriptions and deliberately has no past-due grace period; that is a reviewed sample policy, not a universal Stripe rule.
 

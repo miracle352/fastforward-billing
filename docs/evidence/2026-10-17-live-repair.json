@@ -1,0 +1,472 @@
+{
+  "recordedAt": "2026-10-17T20:37:44.161Z",
+  "scope": "Observed local controller/worker run against a synthetic sample application, real CreateOS EU sandbox and Stripe test objects; not hosted or production certification.",
+  "run": {
+    "status": "passed",
+    "createdAt": "2026-10-17T20:35:06.087Z",
+    "updatedAt": "2026-10-17T20:36:53.608Z",
+    "attempt": 1,
+    "scenarios": [
+      "healthy_renewal",
+      "trial_payment_failure"
+    ],
+    "policy": "active_or_trialing_no_grace",
+    "summary": "Generated repair passed the fixed access and isolation checks using fresh Stripe test subscriptions. This result covers the supported sample and selected scenarios."
+  },
+  "checks": [
+    {
+      "scenario": "healthy_renewal",
+      "customer": "Maya",
+      "checkpoint": "baseline: initial subscription access",
+      "expectedAccess": true,
+      "observedAccess": true,
+      "stripeStatus": "active",
+      "verdict": "passed",
+      "message": "Authenticated customer received only their private report."
+    },
+    {
+      "scenario": "trial_payment_failure",
+      "customer": "Leo",
+      "checkpoint": "baseline: initial subscription access",
+      "expectedAccess": true,
+      "observedAccess": true,
+      "stripeStatus": "trialing",
+      "verdict": "passed",
+      "message": "Authenticated customer received only their private report."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "customer": "Maya",
+      "checkpoint": "baseline: after billing transition",
+      "expectedAccess": true,
+      "observedAccess": true,
+      "stripeStatus": "active",
+      "verdict": "passed",
+      "message": "Authenticated customer received only their private report."
+    },
+    {
+      "scenario": "trial_payment_failure",
+      "customer": "Leo",
+      "checkpoint": "baseline: after billing transition",
+      "expectedAccess": false,
+      "observedAccess": true,
+      "stripeStatus": "past_due",
+      "verdict": "failed",
+      "message": "Expected access denied (403); observed HTTP 200."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "customer": "Access boundary",
+      "checkpoint": "baseline: unauthenticated report",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": null,
+      "verdict": "passed",
+      "message": "Request correctly denied with HTTP 401."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "customer": "Access boundary",
+      "checkpoint": "baseline: unknown identity",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": null,
+      "verdict": "passed",
+      "message": "Request correctly denied with HTTP 401."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "customer": "Access boundary",
+      "checkpoint": "baseline: another customer report",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": null,
+      "verdict": "passed",
+      "message": "Request correctly denied with HTTP 403."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "customer": "Maya",
+      "checkpoint": "verification: initial subscription access",
+      "expectedAccess": true,
+      "observedAccess": true,
+      "stripeStatus": "active",
+      "verdict": "passed",
+      "message": "Authenticated customer received only their private report."
+    },
+    {
+      "scenario": "trial_payment_failure",
+      "customer": "Leo",
+      "checkpoint": "verification: initial subscription access",
+      "expectedAccess": true,
+      "observedAccess": true,
+      "stripeStatus": "trialing",
+      "verdict": "passed",
+      "message": "Authenticated customer received only their private report."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "customer": "Maya",
+      "checkpoint": "verification: after billing transition",
+      "expectedAccess": true,
+      "observedAccess": true,
+      "stripeStatus": "active",
+      "verdict": "passed",
+      "message": "Authenticated customer received only their private report."
+    },
+    {
+      "scenario": "trial_payment_failure",
+      "customer": "Leo",
+      "checkpoint": "verification: after billing transition",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": "past_due",
+      "verdict": "passed",
+      "message": "Customer without an eligible subscription was denied."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "customer": "Access boundary",
+      "checkpoint": "verification: unauthenticated report",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": null,
+      "verdict": "passed",
+      "message": "Request correctly denied with HTTP 401."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "customer": "Access boundary",
+      "checkpoint": "verification: unknown identity",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": null,
+      "verdict": "passed",
+      "message": "Request correctly denied with HTTP 401."
+    },
+    {
+      "scenario": "healthy_renewal",
+      "customer": "Access boundary",
+      "checkpoint": "verification: another customer report",
+      "expectedAccess": false,
+      "observedAccess": false,
+      "stripeStatus": null,
+      "verdict": "passed",
+      "message": "Request correctly denied with HTTP 403."
+    }
+  ],
+  "artifacts": [
+    {
+      "kind": "source",
+      "name": "billing-attempt-1.py",
+      "sha256": "4001b0acfe98bcbfd4ee92eb3c63a0c68676e5caac3a6861e76c56f16319c669"
+    },
+    {
+      "kind": "execution",
+      "name": "execution-attempt-1.json",
+      "sha256": "061321d4f5d0c93f7d019ffcafdccbee1916e00b012cda8f5a716fbf5fff2e77"
+    },
+    {
+      "kind": "patch",
+      "name": "billing-repair.patch",
+      "sha256": "8f9110b798875997db39f1869b798fd9fbb3e7c3755704de9c7c2933400ba8f6"
+    },
+    {
+      "kind": "report",
+      "name": "verification-report.json",
+      "sha256": "d98784d2772924d05929a9b3bf71ad22756bc100b88a0d48c88b0d1413c62b40"
+    }
+  ],
+  "events": [
+    {
+      "createdAt": "2026-10-17T20:35:06.089Z",
+      "kind": "status",
+      "message": "Test queued. No success has been observed yet.",
+      "data": null
+    },
+    {
+      "createdAt": "2026-10-17T20:35:06.295Z",
+      "kind": "status",
+      "message": "Preparing real test environments",
+      "data": null
+    },
+    {
+      "createdAt": "2026-10-17T20:35:09.860Z",
+      "kind": "observation",
+      "message": "Real HTTPS sample application and protected control endpoint observed.",
+      "data": {}
+    },
+    {
+      "createdAt": "2026-10-17T20:35:09.862Z",
+      "kind": "status",
+      "message": "Checking the original subscription integration",
+      "data": {
+        "status": "baseline"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:35:59.593Z",
+      "kind": "check",
+      "message": "Maya: Authenticated customer received only their private report.",
+      "data": {
+        "checkId": "baseline-0-1-healthy_renewal-initial",
+        "verdict": "passed",
+        "checkpoint": "baseline: initial subscription access"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:35:59.595Z",
+      "kind": "check",
+      "message": "Leo: Authenticated customer received only their private report.",
+      "data": {
+        "checkId": "baseline-0-1-trial_payment_failure-initial",
+        "verdict": "passed",
+        "checkpoint": "baseline: initial subscription access"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:35:59.596Z",
+      "kind": "check",
+      "message": "Maya: Authenticated customer received only their private report.",
+      "data": {
+        "checkId": "baseline-0-1-healthy_renewal-transition",
+        "verdict": "passed",
+        "checkpoint": "baseline: after billing transition"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:35:59.597Z",
+      "kind": "check",
+      "message": "Leo: Expected access denied (403); observed HTTP 200.",
+      "data": {
+        "checkId": "baseline-0-1-trial_payment_failure-transition",
+        "verdict": "failed",
+        "checkpoint": "baseline: after billing transition"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:35:59.599Z",
+      "kind": "check",
+      "message": "Access boundary: Request correctly denied with HTTP 401.",
+      "data": {
+        "checkId": "baseline-0-1-anonymous",
+        "verdict": "passed",
+        "checkpoint": "baseline: unauthenticated report"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:35:59.600Z",
+      "kind": "check",
+      "message": "Access boundary: Request correctly denied with HTTP 401.",
+      "data": {
+        "checkId": "baseline-0-1-unknown",
+        "verdict": "passed",
+        "checkpoint": "baseline: unknown identity"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:35:59.602Z",
+      "kind": "check",
+      "message": "Access boundary: Request correctly denied with HTTP 403.",
+      "data": {
+        "checkId": "baseline-0-1-cross-customer",
+        "verdict": "passed",
+        "checkpoint": "baseline: another customer report"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:35:59.783Z",
+      "kind": "observation",
+      "message": "Stripe records and actual report endpoints independently observed.",
+      "data": {
+        "phase": "baseline",
+        "observations": [
+          {
+            "scenario": "healthy_renewal",
+            "status": "active",
+            "invoiceStatus": "paid",
+            "invoicePaid": true,
+            "amountDue": 1900,
+            "amountPaid": 1900,
+            "clockTime": 1794951411
+          },
+          {
+            "scenario": "trial_payment_failure",
+            "status": "past_due",
+            "invoiceStatus": "open",
+            "invoicePaid": false,
+            "amountDue": 1900,
+            "amountPaid": 0,
+            "clockTime": 1792877814
+          }
+        ],
+        "signedEventCount": 9
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:02.329Z",
+      "kind": "observation",
+      "message": "The original sample integration returned a real access mismatch. Repair is required.",
+      "data": {
+        "failureCount": 1
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:02.331Z",
+      "kind": "status",
+      "message": "Writing a repair from observed failures",
+      "data": {
+        "status": "repairing"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:04.094Z",
+      "kind": "model",
+      "message": "The model returned a new handler implementation; success has not been assumed.",
+      "data": {
+        "attempt": 1,
+        "model": "openai/gpt-oss-120b",
+        "usage": {
+          "promptTokens": 875,
+          "completionTokens": 483,
+          "totalTokens": 1358
+        },
+        "explanation": "Added handling for created, updated, and deleted events, extracted customer and subscription IDs safely, fetched authoritative subscription via stripe_get, set allowed only for active/trialing statuses, and performed upsert. Ignored other event types and handled fetch errors without DB changes.",
+        "sourceSha256": "4001b0acfe98bcbfd4ee92eb3c63a0c68676e5caac3a6861e76c56f16319c669"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:04.678Z",
+      "kind": "execution",
+      "message": "CreateOS executed the trusted source validator and Python compilation.",
+      "data": {
+        "attempt": 1,
+        "exitCode": 0,
+        "durationMs": 43.98
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:05.207Z",
+      "kind": "status",
+      "message": "Testing the generated repair with fresh Stripe customers",
+      "data": {
+        "status": "verifying"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:50.117Z",
+      "kind": "check",
+      "message": "Maya: Authenticated customer received only their private report.",
+      "data": {
+        "checkId": "verification-1-2-healthy_renewal-initial",
+        "verdict": "passed",
+        "checkpoint": "verification: initial subscription access"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:50.118Z",
+      "kind": "check",
+      "message": "Leo: Authenticated customer received only their private report.",
+      "data": {
+        "checkId": "verification-1-2-trial_payment_failure-initial",
+        "verdict": "passed",
+        "checkpoint": "verification: initial subscription access"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:50.120Z",
+      "kind": "check",
+      "message": "Maya: Authenticated customer received only their private report.",
+      "data": {
+        "checkId": "verification-1-2-healthy_renewal-transition",
+        "verdict": "passed",
+        "checkpoint": "verification: after billing transition"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:50.122Z",
+      "kind": "check",
+      "message": "Leo: Customer without an eligible subscription was denied.",
+      "data": {
+        "checkId": "verification-1-2-trial_payment_failure-transition",
+        "verdict": "passed",
+        "checkpoint": "verification: after billing transition"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:50.123Z",
+      "kind": "check",
+      "message": "Access boundary: Request correctly denied with HTTP 401.",
+      "data": {
+        "checkId": "verification-1-2-anonymous",
+        "verdict": "passed",
+        "checkpoint": "verification: unauthenticated report"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:50.125Z",
+      "kind": "check",
+      "message": "Access boundary: Request correctly denied with HTTP 401.",
+      "data": {
+        "checkId": "verification-1-2-unknown",
+        "verdict": "passed",
+        "checkpoint": "verification: unknown identity"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:50.127Z",
+      "kind": "check",
+      "message": "Access boundary: Request correctly denied with HTTP 403.",
+      "data": {
+        "checkId": "verification-1-2-cross-customer",
+        "verdict": "passed",
+        "checkpoint": "verification: another customer report"
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:50.313Z",
+      "kind": "observation",
+      "message": "Stripe records and actual report endpoints independently observed.",
+      "data": {
+        "phase": "verification",
+        "observations": [
+          {
+            "scenario": "healthy_renewal",
+            "status": "active",
+            "invoiceStatus": "paid",
+            "invoicePaid": true,
+            "amountDue": 1900,
+            "amountPaid": 1900,
+            "clockTime": 1794951466
+          },
+          {
+            "scenario": "trial_payment_failure",
+            "status": "past_due",
+            "invoiceStatus": "open",
+            "invoicePaid": false,
+            "amountDue": 1900,
+            "amountPaid": 0,
+            "clockTime": 1792877870
+          }
+        ],
+        "signedEventCount": 9
+      }
+    },
+    {
+      "createdAt": "2026-10-17T20:36:53.606Z",
+      "kind": "cleanup",
+      "message": "Tracked test clocks, webhook endpoint and sandbox cleanup confirmed.",
+      "data": null
+    },
+    {
+      "createdAt": "2026-10-17T20:36:53.608Z",
+      "kind": "status",
+      "message": "Supported checks passed",
+      "data": {
+        "status": "passed"
+      }
+    }
+  ],
+  "freshStripeObjectsObserved": true,
+  "publicRedaction": "Provider object identifiers, controller run identifiers, credentials, report content and authentication have been omitted. Detailed evidence remains private locally."
+}
