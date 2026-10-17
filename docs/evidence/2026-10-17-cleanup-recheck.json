@@ -126,5 +126,15 @@
       "note": "Initial audit incorrectly required subscription deletion. Fresh Stripe reads show retained records are canceled. It also exposed the historical process-flag persistence bug."
     }
   ],
-  "trackingNote": "The terminal run metadata has not been rewritten to bypass lease fencing. Future cleanup now verifies canceled subscriptions and persists process completion."
+  "trackingNote": "The terminal run metadata has not been rewritten to bypass lease fencing. Future cleanup now verifies canceled subscriptions and persists process completion.",
+  "correctedRoutineReplay": {
+    "checkedAt": "2026-10-17T21:35:11.018Z",
+    "newModelCalls": 0,
+    "newSandboxes": 0,
+    "providerReadsPerformed": 8,
+    "persistedUpdates": 9,
+    "failures": 0,
+    "allResourcesMarkedCleaned": true,
+    "terminalRunMetadataUnchanged": true
+  }
 }
