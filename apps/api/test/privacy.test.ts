@@ -31,3 +31,12 @@ test('malformed URLs and provider status fields cannot smuggle private input int
  const error=safeProviderError('createos',{status:value,message:value,headers:{authorization:value}});
  assert.equal(error.code,'REQUEST_FAILED');assert.doesNotMatch(error.message,new RegExp(value));
 });
+
+test('database credentials are redacted in configured and unexpected connection URLs',()=>{
+ const url='postgresql://synthetic-user:synthetic-password@synthetic.neon.tech/database?sslmode=require';
+ assert.ok(credentialValues({DATABASE_URL:url}).includes(url));
+ assert.ok(credentialValues({FASTFORWARD_DATA_CONNECTION_STRING:url}).includes(url));
+ assert.equal(redactDiagnosticText(url,{FASTFORWARD_DATA_CONNECTION_STRING:url}),'[REDACTED]');
+ assert.doesNotMatch(redactDiagnosticText(url,{DATABASE_URL:url}),/synthetic/);
+ assert.doesNotMatch(redactDiagnosticText(url,{}),/synthetic-password/);
+});

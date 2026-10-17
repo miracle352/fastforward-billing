@@ -1,0 +1,49 @@
+{
+  "checkedAt": "2026-10-17T22:53:29.669Z",
+  "scope": "Credential rotation, provider account reads and offline persistence preparation; no new repair run",
+  "credentialRotation": {
+    "replacementPrivatelySaved": true,
+    "expiryDays": 30,
+    "localConsumersMigrated": 2,
+    "deployedEnvironmentReadbackMatched": true,
+    "managedKeysRevoked": 4,
+    "oldManagedKeyStatuses": [
+      401,
+      401,
+      401,
+      401
+    ],
+    "replacementStatus": 200,
+    "exposedIntegrationTokenStatus": 200,
+    "incidentFullyResolved": false
+  },
+  "accountCredits": {
+    "amount": 395.4321609482359,
+    "planAmount": 0,
+    "unit": "provider credits; not asserted USD"
+  },
+  "approvals": {
+    "createosRuntime": "existing free fastforward-runtime",
+    "additionalDatabase": "Neon Free plus free Postgres fastforward-data only",
+    "paidPlans": false,
+    "topUps": false
+  },
+  "checks": {
+    "typecheck": "passed",
+    "backendTests": 45,
+    "asyncStorageAPI": "passed",
+    "operatorRecoveryRegressions": "passed",
+    "realPostgres": "not run; resource not provisioned",
+    "publicHosting": "not deployed"
+  },
+  "usage": {
+    "modelCalls": 0,
+    "sandboxCreations": 0,
+    "liveRepairRuns": 0
+  },
+  "blockers": [
+    "Stripe Projects currently authorizes only Carry BUYER test account, not existing Fastforward project owner",
+    "Exact exposed integration bearer token still authenticates despite managed-key revocation",
+    "Approved Neon Free database not provisioned; actual Postgres and cloud restart persistence unverified"
+  ]
+}

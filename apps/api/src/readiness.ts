@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import type { ReadinessRecord, ProviderReadinessRecord } from '@fastforward/contracts';
 import type { Config } from './config.js';
-import type { RunStore } from './store.js';
+import type {Store as RunStore} from './storage.js';
 
 async function probes(config: Config): Promise<ProviderReadinessRecord[]> {
   const check = async (id: ProviderReadinessRecord['id'], key: string, work: () => Promise<string>): Promise<ProviderReadinessRecord> => {
@@ -50,10 +50,11 @@ export function createReadinessReader(probe: (config:Config)=>Promise<ProviderRe
     }
     const providers=entry.providers!;
     const blockers=providers.filter(p=>p.status!=='ready').map(p=>p.message);
+    if(!config.server.acceptNewRuns)blockers.push('New runs are paused by the operator.');
     if(!config.stripe.readonlyConfirmed)blockers.push('Configure and confirm a read-only restricted Stripe test key for the generated application.');
     if(config.groq.maxCalls<1||config.groq.maxOutputTokens<128||config.server.globalDailyLimit<1)blockers.push('The operator must configure model-call, output-token and daily-run budgets before execution.');
-    if(store.getCleanupPending().length)blockers.push('A previous run has resources awaiting confirmed cleanup.');
-    return {ready:!blockers.length,providers,blockers,testMode:true,activeRunId:store.getActiveRun()?.id??null};
+    if((await store.getCleanupPending()).length)blockers.push('A previous run has resources awaiting confirmed cleanup.');
+    return {ready:!blockers.length,providers,blockers,testMode:true,activeRunId:(await store.getActiveRun())?.id??null};
   };
 }
 export const getReadiness=createReadinessReader(probes);

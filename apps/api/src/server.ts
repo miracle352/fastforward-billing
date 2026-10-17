@@ -4,11 +4,12 @@ import { timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { CreateRun, type ReadinessRecord } from '@fastforward/contracts';
-import { RunStore, StoreError, type SessionRecord } from './store.js';
+import { StoreError, type SessionRecord } from './store.js';
+import type {Store as RunStore} from './storage.js';
 
 export type ServerOptions = {
   store: RunStore; readiness: () => Promise<ReadinessRecord> | ReadinessRecord;
-  secureCookies?: boolean; globalDailyLimit?: number; ownerDailyLimit?: number; staticRoot?: string;
+  acceptNewRuns?: boolean; secureCookies?: boolean; globalDailyLimit?: number; ownerDailyLimit?: number; staticRoot?: string;
   origin?: string | string[];
 };
 const COOKIE = 'ff_visitor';
@@ -21,9 +22,9 @@ export async function createServer(options: ServerOptions): Promise<FastifyInsta
   await app.register(cookie);
   const error = (reply: FastifyReply, status: number, code: string, message: string, blockers?: string[]) =>
     reply.code(status).send({ error: { code, message, ...(blockers ? { blockers } : {}) } });
-  const session = (request: FastifyRequest): SessionRecord | null => options.store.getSession(request.cookies[COOKIE] ?? '');
-  const authorize = (request: FastifyRequest, reply: FastifyReply, csrf = false): SessionRecord | null => {
-    const current = session(request);
+  const session = async (request: FastifyRequest): Promise<SessionRecord | null> => (await options.store.getSession(request.cookies[COOKIE] ?? ''));
+  const authorize = async (request: FastifyRequest, reply: FastifyReply, csrf = false): Promise<SessionRecord | null> => {
+    const current = await session(request);
     if (!current) { error(reply, 401, 'SESSION_REQUIRED', 'Open the test page to establish your visitor session.'); return null; }
     if (csrf) {
       const token = request.headers['x-csrf-token'];
@@ -50,9 +51,9 @@ export async function createServer(options: ServerOptions): Promise<FastifyInsta
   });
   app.get('/api/health', async () => ({ ok: true, service: 'fastforward', testMode: true }));
   app.get('/api/session', async (request, reply) => {
-    let current = session(request);
+    let current = await session(request);
     if (!current) {
-      current = options.store.createSession();
+      current = (await options.store.createSession());
       reply.setCookie(COOKIE, current.id, { httpOnly: true, secure: options.secureCookies ?? false, sameSite: 'strict',
         path: '/', maxAge: 24 * 60 * 60 });
     }
@@ -60,15 +61,15 @@ export async function createServer(options: ServerOptions): Promise<FastifyInsta
   });
   app.get('/api/readiness', async (request) => {
     const readiness = await options.readiness();
-    const current = session(request); const active = options.store.getActiveRun();
-    return { ...readiness, activeRunId: active && current && options.store.getRunForOwner(active.id, current.id) ? active.id : null };
+    const current = await session(request); const active = (await options.store.getActiveRun());
+    return { ...readiness, activeRunId: active && current && (await options.store.getRunForOwner(active.id, current.id)) ? active.id : null };
   });
   app.get('/api/runs', async (request, reply) => {
-    const current = authorize(request, reply); if (!current) return;
-    return { runs: options.store.listRuns(current.id) };
+    const current = await authorize(request, reply); if (!current) return;
+    return { runs: (await options.store.listRuns(current.id)) };
   });
   app.post('/api/runs', async (request, reply) => {
-    const current = authorize(request, reply, true); if (!current) return;
+    const current = await authorize(request, reply, true); if (!current) return;
     const input = CreateRun.safeParse(request.body);
     if (!input.success) return error(reply, 400, 'INPUT_INVALID', 'Choose one or both supported billing scenarios.');
     const key = request.headers['idempotency-key'];
@@ -76,12 +77,13 @@ export async function createServer(options: ServerOptions): Promise<FastifyInsta
       return error(reply, 400, 'IDEMPOTENCY_INVALID', 'Use an 8–128 character request key containing letters, numbers, dots, colons, underscores or dashes.');
     try {
       if (key) {
-        const saved = options.store.getRunForRequest(current.id, key, input.data.scenarios);
+        const saved = (await options.store.getRunForRequest(current.id, key, input.data.scenarios));
         if (saved) return reply.code(202).header('Idempotency-Replayed','true').send({ run: saved });
       }
+      if(options.acceptNewRuns === false)return error(reply,503,'ADMISSION_PAUSED','New runs are paused by the operator. Saved results remain available.');
       const readiness = await options.readiness();
       if (!readiness.ready) return error(reply, 503, 'SETUP_NEEDED', 'A real test cannot start until the listed services are ready.', readiness.blockers);
-      const run = options.store.createRun(current.id, input.data.scenarios, { ...options, idempotencyKey: key });
+      const run = (await options.store.createRun(current.id, input.data.scenarios, { ...options, idempotencyKey: key }));
       return reply.code(202).send({ run });
     } catch (caught) {
       if (caught instanceof StoreError) return error(reply, ['BUSY', 'CLEANUP_PENDING', 'IDEMPOTENCY_CONFLICT'].includes(caught.code) ? 409 : 429, caught.code, caught.message);
@@ -89,26 +91,26 @@ export async function createServer(options: ServerOptions): Promise<FastifyInsta
     }
   });
   app.get<{ Params: { id: string } }>('/api/runs/:id', async (request, reply) => {
-    const current = authorize(request, reply); if (!current) return;
-    const run = options.store.getRunForOwner(request.params.id, current.id);
+    const current = await authorize(request, reply); if (!current) return;
+    const run = (await options.store.getRunForOwner(request.params.id, current.id));
     return run ? { run } : error(reply, 404, 'NOT_FOUND', 'Test not found.');
   });
   app.get<{ Params: { id: string }; Querystring: { after?: string } }>('/api/runs/:id/events', async (request, reply) => {
-    const current = authorize(request, reply); if (!current) return;
-    if (!options.store.getRunForOwner(request.params.id, current.id)) return error(reply, 404, 'NOT_FOUND', 'Test not found.');
+    const current = await authorize(request, reply); if (!current) return;
+    if (!(await options.store.getRunForOwner(request.params.id, current.id))) return error(reply, 404, 'NOT_FOUND', 'Test not found.');
     const after = Number(request.query.after ?? 0);
     if (!Number.isSafeInteger(after) || after < 0) return error(reply, 400, 'CURSOR_INVALID', 'Event cursor must be a nonnegative integer.');
-    const events = options.store.getEvents(request.params.id, after);
+    const events = (await options.store.getEvents(request.params.id, after));
     return { events, nextCursor: events.at(-1)?.id ?? after };
   });
   app.post<{ Params: { id: string } }>('/api/runs/:id/cancel', async (request, reply) => {
-    const current = authorize(request, reply, true); if (!current) return;
-    const run = options.store.requestCancel(current.id, request.params.id);
+    const current = await authorize(request, reply, true); if (!current) return;
+    const run = (await options.store.requestCancel(current.id, request.params.id));
     return run ? reply.code(202).send({ run }) : error(reply, 404, 'NOT_FOUND', 'Test not found.');
   });
   app.get<{ Params: { id: string; artifactId: string } }>('/api/runs/:id/artifacts/:artifactId', async (request, reply) => {
-    const current = authorize(request, reply); if (!current) return;
-    const saved = options.store.getArtifactContent(current.id, request.params.id, request.params.artifactId);
+    const current = await authorize(request, reply); if (!current) return;
+    const saved = (await options.store.getArtifactContent(current.id, request.params.id, request.params.artifactId));
     if (!saved) return error(reply, 404, 'NOT_FOUND', 'Artifact not found.');
     reply.header('Content-Disposition', `attachment; filename="${saved.artifact.name}"`);
     return reply.type('text/plain; charset=utf-8').send(saved.content);

@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 // Start both persistent processes at service startup, never from an HTTP request.
-// The deployment must mount FASTFORWARD_DATA_DIR on a persistent volume.
+// All processes share DATABASE_URL, or a verified persistent FASTFORWARD_DATA_DIR for SQLite.
 const children = new Map<string, ChildProcess>();
 const restarts = new Map<string, number[]>();
 let stopping = false;

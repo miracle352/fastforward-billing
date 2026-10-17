@@ -1,11 +1,11 @@
 import { resolve } from 'node:path';
 import { loadConfig } from './config.js';
 import { getReadiness } from './readiness.js';
-import { RunStore } from './store.js';
+import {openStore} from './storage.js';
 import { createServer } from './server.js';
 
 const config = loadConfig();
-const store = new RunStore(resolve(config.server.dataDir, 'fastforward.sqlite'));
+const store = await openStore(config);
 const app = await createServer({
   store, readiness: () => getReadiness(config, store), ...config.server,
   staticRoot: resolve('apps/web/dist'),

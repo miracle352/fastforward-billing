@@ -228,6 +228,22 @@ export class RunStore {
       this.insertEvent(runId, { kind: 'cleanup', message: 'Trusted recovery worker confirmed previous environment cleanup.', data: { status: run.status } });
     });
   }
+  /** Operator recovery records only a provider-verified receipt; cleanup still owns the gate. */
+  recordRecoveredResource(runId: string, expected: {kind: string; index: number}, resource: {kind: string; id: string}): void {
+    this.atomic(() => {
+      const run = this.getRun(runId);
+      const intent = this.getMetadata<{kind: string; index: number}>(runId, 'allocation_pending');
+      const resources = this.getMetadata<Array<{kind: string; id: string; cleaned?: boolean}>>(runId, 'resources');
+      if (!run || !terminal.has(run.status) || this.getMetadata(runId, 'cleanup_pending') !== true)
+        throw new StoreError('RECOVERY_NOT_STOPPED', 'Only a stopped cleanup-blocked job may receive a recovery receipt.');
+      if (!intent || intent.kind !== expected.kind || intent.index !== expected.index || resource.kind !== intent.kind ||
+        !resources || resources.length !== intent.index || resources.some(r => r.kind === resource.kind && r.id === resource.id))
+        throw new StoreError('RECOVERY_CONFLICT', 'Recovery intent changed or the receipt conflicts with retained resources.');
+      resources.push({kind:resource.kind,id:resource.id});
+      this.db.prepare("UPDATE metadata SET value=? WHERE run_id=? AND key='resources'").run(JSON.stringify(resources),runId);
+      this.insertEvent(runId,{kind:'cleanup',message:'Operator recorded a provider-verified allocation receipt; cleanup remains pending.'});
+    });
+  }
   assertRunLease(runId: string, lease: Lease): void { this.assertLease(runId, lease); }
 
   setMetadata(runId: string, key: string, value: unknown, lease: Lease) {

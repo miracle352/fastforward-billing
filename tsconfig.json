@@ -5,6 +5,6 @@
     "resolveJsonModule": true, "skipLibCheck": true, "noEmit": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["apps/api/**/*.ts", "packages/contracts/**/*.ts"],
+  "include": ["apps/api/**/*.ts", "packages/contracts/**/*.ts", "scripts/**/*.ts"],
   "exclude": ["node_modules", "apps/web"]
 }

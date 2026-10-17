@@ -5,7 +5,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { Sandbox } from '@nodeops-createos/sandbox';
 import type { CheckRecord, RunRecord } from '@fastforward/contracts';
 import type { Config } from './config.js';
-import { RunStore, StoreError, type ClaimedRun, type Lease } from './store.js';
+import { StoreError, type ClaimedRun, type Lease } from './store.js';
+import type {Store as RunStore} from './storage.js';
 import { getReadiness } from './readiness.js';
 import { CreateOSProvider, GroqCodeProvider, StripeBillingProvider, ProviderError, boundedText, pollUntil,
   type FixtureResource, type StripeFixtureBundle, type StripeObservation } from './providers/index.js';
@@ -157,7 +158,7 @@ async function controlled(url: string, path: string, controlToken: string, signa
 }
 
 export async function cleanupResources(resources: Resource[], stripe: StripeBillingProvider, createos: CreateOSProvider,
-  options: { fixturesOnly?: boolean; onUpdate?: () => void } = {}): Promise<string[]> {
+  options: { fixturesOnly?: boolean; onUpdate?: () => unknown } = {}): Promise<string[]> {
   const failures: string[] = [];
   // Stripe retains canceled subscription records after deleting a test clock.
   // Verify customer deletion and subscription cancellation; archive price/product explicitly.
@@ -180,7 +181,7 @@ export async function cleanupResources(resources: Resource[], stripe: StripeBill
           if (isGone(error)) resource.cleaned = true;
           else failures.push(kind + ' cleanup not confirmed: ' + resource.id);
         }
-        options.onUpdate?.();
+        await options.onUpdate?.();
       }
       continue;
     }
@@ -188,7 +189,7 @@ export async function cleanupResources(resources: Resource[], stripe: StripeBill
       const parents = resources.filter(item => item.kind === 'sandbox');
       if (parents.length && parents.every(item => item.cleaned)) resource.cleaned = true;
       else failures.push('Process cleanup requires its tracked sandbox to be destroyed.');
-      options.onUpdate?.();
+      await options.onUpdate?.();
       continue;
     }
     try {
@@ -199,7 +200,7 @@ export async function cleanupResources(resources: Resource[], stripe: StripeBill
       else if (kind === 'sandbox') await createos.destroy(await createos.reconnect(resource.id));
       resource.cleaned = true;
     } catch (error) { if (isGone(error)) resource.cleaned = true; else failures.push(`${kind} cleanup not confirmed: ${resource.id}`); }
-    options.onUpdate?.();
+    await options.onUpdate?.();
   }
   return failures;
 }
@@ -219,26 +220,26 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
   let desired: 'passed' | 'failed' | 'blocked' = 'failed';
   let summary = 'No successful repair was observed.';
   let errorMessage: string | undefined;
-  const persist = () => store.setMetadata(run.id, 'resources', resources, lease);
-  const prepareAllocation = (kind: Resource['kind']) => {
-    assertActive(); store.setMetadata(run.id, 'allocation_pending', { kind, index: resources.length }, lease);
+  const persist = async () => (await store.setMetadata(run.id, 'resources', resources, lease));
+  const prepareAllocation = async (kind: Resource['kind']) => {
+    (await assertActive()); (await store.setMetadata(run.id, 'allocation_pending', { kind, index: resources.length }, lease));
   };
-  const track = (resource: Resource) => { resources.push(resource); persist(); store.setMetadata(run.id, 'allocation_pending', null, lease); };
-  const event = (kind: 'status' | 'observation' | 'model' | 'execution' | 'check' | 'cleanup' | 'error', message: string, data?: Record<string, unknown>) => {
-    store.appendEvent(run.id, { kind, message, data }, lease);
+  const track = async (resource: Resource) => { resources.push(resource); (await persist()); (await store.setMetadata(run.id, 'allocation_pending', null, lease)); };
+  const event = async (kind: 'status' | 'observation' | 'model' | 'execution' | 'check' | 'cleanup' | 'error', message: string, data?: Record<string, unknown>) => {
+    (await store.appendEvent(run.id, { kind, message, data }, lease));
   };
-  const assertActive = () => {
-    signal.throwIfAborted(); store.assertRunLease(run.id, lease);
-    if (store.getRun(run.id)?.status === 'cancel_requested') { abort.abort(new Error('Cancellation requested.')); signal.throwIfAborted(); }
+  const assertActive = async () => {
+    signal.throwIfAborted(); (await store.assertRunLease(run.id, lease));
+    if ((await store.getRun(run.id))?.status === 'cancel_requested') { abort.abort(new Error('Cancellation requested.')); signal.throwIfAborted(); }
   };
-  const heart = setInterval(() => {
-    try { store.renewLease(run.id, lease); if (store.getRun(run.id)?.status === 'cancel_requested') abort.abort(new Error('Cancellation requested.')); }
+  const heart = setInterval(async () => {
+    try { (await store.renewLease(run.id, lease)); if ((await store.getRun(run.id))?.status === 'cancel_requested') abort.abort(new Error('Cancellation requested.')); }
     catch { abort.abort(new Error('Worker lease lost.')); }
   }, 10_000);
   heart.unref();
-  const addChecks = (observed: CheckRecord[]) => {
-    checks.push(...observed); store.updateRun(run.id, lease, { checks });
-    for (const check of observed) event('check', `${check.customer}: ${check.message}`, { checkId: check.id, verdict: check.verdict, checkpoint: check.checkpoint });
+  const addChecks = async (observed: CheckRecord[]) => {
+    checks.push(...observed); (await store.updateRun(run.id, lease, { checks }));
+    for (const check of observed) (await event('check', `${check.customer}: ${check.message}`, { checkId: check.id, verdict: check.verdict, checkpoint: check.checkpoint }));
   };
   try {
     const [trustedApp, baselineSource, contract] = await Promise.all([
@@ -246,38 +247,38 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
       readFile(resolve('fixtures/sample-app/INTERFACE.md'), 'utf8'),
     ]);
     const controlToken = token();
-    store.setMetadata(run.id, 'trustedAppSha256', sha(trustedApp), lease);
-    persist(); prepareAllocation('sandbox');
-    sandbox = await createos.createRunSandbox(run.id, { STRIPE_READONLY_KEY: config.stripe.readonlyKey }, receipt => {
-      track({ kind: 'sandbox', id: receipt.sandboxId }); store.updateRun(run.id, lease, { sandboxId: receipt.sandboxId });
+    (await store.setMetadata(run.id, 'trustedAppSha256', sha(trustedApp), lease));
+    (await persist()); (await prepareAllocation('sandbox'));
+    sandbox = await createos.createRunSandbox(run.id, { STRIPE_READONLY_KEY: config.stripe.readonlyKey }, async receipt => {
+      (await track({ kind: 'sandbox', id: receipt.sandboxId })); (await store.updateRun(run.id, lease, { sandboxId: receipt.sandboxId }));
     });
-    assertActive();
+    (await assertActive());
     await createos.uploadFiles(sandbox, { [`${ROOT}/app.py`]: trustedApp, [`${ROOT}/billing.py`]: baselineSource,
       [`${ROOT}/validate.py`]: VALIDATOR, [`${ROOT}/private-config.json`]: JSON.stringify({ controlToken, webhookSecret: '', fixtureRunId: `${run.id}-unconfigured` }) });
-    prepareAllocation('process');
+    (await prepareAllocation('process'));
     const process = await createos.startProcess(sandbox, { cmd: 'python3', args: ['-B', '-u', `${ROOT}/app.py`], cwd: ROOT,
       env: { STRIPE_READONLY_KEY: config.stripe.readonlyKey } });
-    track({ kind: 'process', id: process.processId });
+    (await track({ kind: 'process', id: process.processId }));
     const previewUrl = await createos.preview(sandbox, 8000);
     if (new URL(previewUrl).protocol !== 'https:') throw new Error('A real HTTPS preview is required for signed Stripe webhook delivery.');
-    store.updateRun(run.id, lease, { previewUrl });
+    (await store.updateRun(run.id, lease, { previewUrl }));
     await waitForPreviewHealth(previewUrl, signal);
     const denied = await http(previewUrl, '/evidence', signal);
     if (denied.status !== 401) throw new Error('Sample application control evidence was not protected.');
-    prepareAllocation('webhook');
+    (await prepareAllocation('webhook'));
     const hook = await stripe.createWebhook(new URL('/webhook', previewUrl).toString(), run.id);
-    track({ kind: 'webhook', id: hook.id });
-    event('observation', 'Real HTTPS sample application and protected control endpoint observed.', { sandboxId: sandbox.id, webhookEndpointId: hook.id });
+    (await track({ kind: 'webhook', id: hook.id }));
+    (await event('observation', 'Real HTTPS sample application and protected control endpoint observed.', { sandboxId: sandbox.id, webhookEndpointId: hook.id }));
     const ensureTrustedSource = async () => {
       if (sha(await createos.downloadText(sandbox!, `${ROOT}/app.py`)) !== sha(trustedApp)) throw new Error('Trusted HTTP/auth source integrity check failed.');
     };
     const phase = async (name: 'baseline' | 'verification', attempt: number): Promise<CheckRecord[]> => {
-      assertActive(); const fixtureRunId = name === 'baseline' ? `${run.id}-b` : `${run.id}-v${attempt}`;
+      (await assertActive()); const fixtureRunId = name === 'baseline' ? `${run.id}-b` : `${run.id}-v${attempt}`;
       try {
       await createos.uploadFiles(sandbox!, { [`${ROOT}/private-config.json`]: JSON.stringify({ controlToken, webhookSecret: hook.secret, fixtureRunId }) });
       await controlled(previewUrl, '/_reset', controlToken, signal, {});
       const bundle: StripeFixtureBundle = await stripe.createFixtures({ runId: fixtureRunId, phase: name, scenarios: run.scenarios,
-        onResource: resource => track(resource), beforeResource: kind => prepareAllocation(kind) });
+        onResource: async resource => (await track(resource)), beforeResource: async kind => (await prepareAllocation(kind)) });
       await Promise.all(bundle.fixtures.map(fixture => stripe.verifyReadonlyFixture(fixture)));
       const people: ReportPerson[] = bundle.fixtures.map(fixture => ({ customerId: fixture.customerId,
         scenario: fixture.scenario, token: token(), report: `Private ${fixture.scenario} report ${randomUUID()}` }));
@@ -322,9 +323,9 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
       observed.push(evaluateDenied({ id: `${prefix}-cross-customer`, checkpoint: `${name}: another customer report`, scenario: first.scenario,
         response: await http(previewUrl, `/report?customer=${encodeURIComponent(otherId)}`, signal, { headers: { Authorization: `Bearer ${first.token}` } }), expectedStatus: 403 }));
       await ensureTrustedSource();
-      addChecks(observed);
-      event('observation', 'Stripe records and actual report endpoints independently observed.', { phase: name, attempt,
-        observations: observations.map(item => ({ ...item })), signedEventCount: (await evidence()).events.length });
+      (await addChecks(observed));
+      (await event('observation', 'Stripe records and actual report endpoints independently observed.', { phase: name, attempt,
+        observations: observations.map(item => ({ ...item })), signedEventCount: (await evidence()).events.length }));
       return observed;
       } finally {
         // Old signed events can be retried after a phase ends. Disable their fixture scope
@@ -335,80 +336,80 @@ export async function executeRun(config: Config, store: RunStore, claimed: Claim
         if (failures.length) throw new ProviderError('stripe', 'PHASE_CLEANUP_PENDING', 'Test-clock cleanup must complete before another verification phase.');
       }
     };
-    store.updateRun(run.id, lease, { status: 'baseline', phase: 'Checking the original subscription integration' });
+    (await store.updateRun(run.id, lease, { status: 'baseline', phase: 'Checking the original subscription integration' }));
     const baseline = await phase('baseline', 0);
     let failures = failedChecks(baseline);
     if (!failures.length) {
       desired = 'passed'; summary = 'The selected baseline checks passed. No mismatch was observed and no repair was generated.';
     } else {
-      event('observation', 'The original sample integration returned a real access mismatch. Repair is required.', { failureCount: failures.length });
+      (await event('observation', 'The original sample integration returned a real access mismatch. Repair is required.', { failureCount: failures.length }));
       let source = baselineSource;
       for (let attempt = 1; attempt <= config.groq.maxCalls; attempt += 1) {
-        assertActive(); store.updateRun(run.id, lease, { status: 'repairing', phase: 'Writing a repair from observed failures', attempt });
+        (await assertActive()); (await store.updateRun(run.id, lease, { status: 'repairing', phase: 'Writing a repair from observed failures', attempt }));
         const repair = await groq.generateRepair({ source, contract: `${contract}\nSafety validator: no imports, annotations, filesystem/process calls, loops, indirect calls, aliases or extra/nested definitions. Do not rebind event, db, stripe_get or builtins. SQL must be an explicit constant string writing only access; call db.execute directly.`, failures }, signal);
         source = repair.source;
-        store.addArtifact(run.id, lease, { kind: 'source', name: `billing-attempt-${attempt}.py`, content: source });
-        event('model', 'The model returned a new handler implementation; success has not been assumed.', { attempt, model: repair.model, usage: repair.usage, rateLimits: repair.rateLimits, explanation: repair.explanation, sourceSha256: sha(source) });
+        (await store.addArtifact(run.id, lease, { kind: 'source', name: `billing-attempt-${attempt}.py`, content: source }));
+        (await event('model', 'The model returned a new handler implementation; success has not been assumed.', { attempt, model: repair.model, usage: repair.usage, rateLimits: repair.rateLimits, explanation: repair.explanation, sourceSha256: sha(source) }));
         // The application never imports candidate.py. Validation precedes installation.
         await createos.uploadFiles(sandbox, { [`${ROOT}/candidate.py`]: source });
         const execution = await createos.execute(sandbox, 'python3', [`${ROOT}/validate.py`], 15_000);
-        store.addArtifact(run.id, lease, { kind: 'execution', name: `execution-attempt-${attempt}.json`, content: JSON.stringify(execution, null, 2) });
-        event('execution', 'CreateOS executed the trusted source validator and Python compilation.', { attempt, exitCode: execution.exitCode, durationMs: execution.durationMs });
+        (await store.addArtifact(run.id, lease, { kind: 'execution', name: `execution-attempt-${attempt}.json`, content: JSON.stringify(execution, null, 2) }));
+        (await event('execution', 'CreateOS executed the trusted source validator and Python compilation.', { attempt, exitCode: execution.exitCode, durationMs: execution.durationMs }));
         if (execution.exitCode !== 0) { failures = [`Source validation/compilation failed: ${boundedText(execution.stderr, 4000)}`]; continue; }
         let receipt: { accepted?: boolean; sha256?: string } = {};
         try { receipt = JSON.parse(execution.stdout.trim()); } catch { /* No receipt means no accepted source. */ }
         if (!receipt.accepted || receipt.sha256 !== sha(source)) { failures = ['Controller could not confirm the validated source hash.']; continue; }
         await createos.uploadFiles(sandbox, { [`${ROOT}/billing.py`]: source });
         await ensureTrustedSource();
-        store.updateRun(run.id, lease, { status: 'verifying', phase: 'Testing the generated repair with fresh Stripe customers' });
+        (await store.updateRun(run.id, lease, { status: 'verifying', phase: 'Testing the generated repair with fresh Stripe customers' }));
         let verified: CheckRecord[];
         try { verified = await phase('verification', attempt); }
         catch (error) {
           if (!(error instanceof HandlerExecutionError)) throw error;
           failures = [`Generated handler raised an error while processing a real signed event:\n${error.message}`];
-          event('observation', 'The generated handler raised a recorded runtime error. Fresh fixtures will be used for the next bounded repair attempt.', { attempt, feedback: failures[0] });
+          (await event('observation', 'The generated handler raised a recorded runtime error. Fresh fixtures will be used for the next bounded repair attempt.', { attempt, feedback: failures[0] }));
           continue;
         }
         failures = failedChecks(verified);
         if (!failures.length) {
           const oldLines = baselineSource.trimEnd().split('\n'); const newLines = source.trimEnd().split('\n');
           const patch = `--- a/billing.py\n+++ b/billing.py\n@@ -1,${oldLines.length} +1,${newLines.length} @@\n${oldLines.map(line => `-${line}`).join('\n')}\n${newLines.map(line => `+${line}`).join('\n')}\n`;
-          store.addArtifact(run.id, lease, { kind: 'patch', name: 'billing-repair.patch', content: patch });
+          (await store.addArtifact(run.id, lease, { kind: 'patch', name: 'billing-repair.patch', content: patch }));
           desired = 'passed'; summary = 'Generated repair passed the fixed access and isolation checks using fresh Stripe test subscriptions. This result covers the supported sample and selected scenarios.';
           break;
         }
       }
       if (desired !== 'passed') { summary = 'The agent used its bounded repair attempts; the supported checks have not all passed.'; errorMessage = failures.join(' ').slice(0, 3000); }
     }
-    assertActive();
-    store.addArtifact(run.id, lease, { kind: 'report', name: 'verification-report.json', content: JSON.stringify({ runId: run.id,
+    (await assertActive());
+    (await store.addArtifact(run.id, lease, { kind: 'report', name: 'verification-report.json', content: JSON.stringify({ runId: run.id,
       testMode: true, policy: run.policy, proposedOutcome: desired, modelCalls: groq.callsUsed, modelRateLimits: groq.rateLimits, checks,
-      limitation: 'Synthetic sample application and Stripe test objects only. Physical time and production billing were not changed.' }, null, 2) });
+      limitation: 'Synthetic sample application and Stripe test objects only. Physical time and production billing were not changed.' }, null, 2) }));
   } catch (error) {
     if (error instanceof StoreError && error.code === 'LEASE_LOST') return;
     if (error instanceof ProviderError && error.provider === 'createos' && /^HTTP_(400|401|403|404|409|422|429)$/.test(error.code)
-      && store.getMetadata<AllocationIntent>(run.id, 'allocation_pending')?.kind === 'sandbox') {
-      store.setMetadata(run.id, 'allocation_pending', null, lease);
+      && (await store.getMetadata<AllocationIntent>(run.id, 'allocation_pending'))?.kind === 'sandbox') {
+      (await store.setMetadata(run.id, 'allocation_pending', null, lease));
     }
     desired = error instanceof ProviderError ? 'blocked' : 'failed';
     errorMessage = error instanceof ProviderError ? error.message : signal.aborted ? 'Execution stopped by cancellation, shutdown or its configured deadline.' : 'The real provider or sample-app verification did not complete. Inspect the saved bounded activity record.';
-    try { event('error', errorMessage, { modelRateLimits: groq.rateLimits }); } catch { /* A fenced worker must not write. */ }
+    try { (await event('error', errorMessage, { modelRateLimits: groq.rateLimits })); } catch { /* A fenced worker must not write. */ }
   } finally {
     // Cleanup deliberately has its own bounded provider calls, independent of an aborted work signal.
     try {
       const failures = await cleanupResources(resources, stripe, createos, { onUpdate: persist });
-      if (allocationUncertain(resources, store.getMetadata<AllocationIntent>(run.id, 'allocation_pending')))
+      if (allocationUncertain(resources, (await store.getMetadata<AllocationIntent>(run.id, 'allocation_pending'))))
         failures.push('A provider creation request has no confirmed receipt; resource reconciliation is required.');
       if (failures.length) {
-        store.setMetadata(run.id, 'cleanup_pending', true, lease);
-        event('cleanup', 'Cleanup is not confirmed. Another test is blocked until resource reconciliation.', { failures });
-        const cancelling = store.getRun(run.id)?.status === 'cancel_requested';
-        if (!cancelling) store.finishRun(run.id, lease, 'interrupted', 'Test stopped with resources awaiting cleanup.', 'Cleanup is pending; no final successful result is claimed.');
+        (await store.setMetadata(run.id, 'cleanup_pending', true, lease));
+        (await event('cleanup', 'Cleanup is not confirmed. Another test is blocked until resource reconciliation.', { failures }));
+        const cancelling = (await store.getRun(run.id))?.status === 'cancel_requested';
+        if (!cancelling) (await store.finishRun(run.id, lease, 'interrupted', 'Test stopped with resources awaiting cleanup.', 'Cleanup is pending; no final successful result is claimed.'));
         // Pending cancellation retains its lease until expiry/recovery; do not label it cancelled.
       } else {
-        event('cleanup', 'Tracked test clocks, webhook endpoint and sandbox cleanup confirmed.');
-        if (store.getRun(run.id)?.status === 'cancel_requested') store.completeCancellation(run.id, lease);
-        else store.finishRun(run.id, lease, desired, summary, errorMessage);
+        (await event('cleanup', 'Tracked test clocks, webhook endpoint and sandbox cleanup confirmed.'));
+        if ((await store.getRun(run.id))?.status === 'cancel_requested') (await store.completeCancellation(run.id, lease));
+        else (await store.finishRun(run.id, lease, desired, summary, errorMessage));
       }
     } catch { /* Lease expiry/recovery retains IDs and blocks fresh work. */ }
     clearInterval(heart);
@@ -423,13 +424,13 @@ export function allocationUncertain(resources: Resource[], intent: AllocationInt
 }
 export async function reconcileStoppedRun(store: RunStore, run: RunRecord, stripe: StripeBillingProvider, createos: CreateOSProvider): Promise<boolean> {
   if (!['interrupted','failed','blocked','cancelled','passed'].includes(run.status)) return false;
-  const saved = store.getMetadata<Resource[]>(run.id, 'resources');
+  const saved = (await store.getMetadata<Resource[]>(run.id, 'resources'));
   if (saved === null && !run.sandboxId) return false; // Legacy/unknown state needs operator reconciliation.
   const resources = saved ?? [];
   if (run.sandboxId && !resources.some(r => r.kind === 'sandbox' && r.id === run.sandboxId)) resources.push({kind:'sandbox',id:run.sandboxId});
   const failures = await cleanupResources(resources, stripe, createos);
-  if (failures.length || allocationUncertain(resources, store.getMetadata<AllocationIntent>(run.id, 'allocation_pending'))) return false;
-  store.confirmCleanup(run.id, resources);
+  if (failures.length || allocationUncertain(resources, (await store.getMetadata<AllocationIntent>(run.id, 'allocation_pending')))) return false;
+  (await store.confirmCleanup(run.id, resources));
   return true;
 }
 
@@ -438,14 +439,14 @@ export async function runWorker(config: Config, store: RunStore, signal: AbortSi
   const workerId = `worker-${randomUUID()}`;
   while (!signal.aborted) {
     try {
-      store.recoverExpiredLeases();
-      const pending = store.getCleanupPending();
+      (await store.recoverExpiredLeases());
+      const pending = (await store.getCleanupPending());
       if (pending.length && config.stripe.controllerKey && config.stripe.readonlyKey && config.createos.apiKey) {
         const stripe = new StripeBillingProvider(config.stripe); const createos = new CreateOSProvider(config.createos);
         for (const run of pending) await reconcileStoppedRun(store, run, stripe, createos);
       }
-      if (!store.getCleanupPending().length && (await getReadiness(config, store)).ready) {
-        const claimed = store.claimNext(workerId);
+      if (!(await store.getCleanupPending()).length && (await getReadiness(config, store)).ready) {
+        const claimed = (await store.claimNext(workerId));
         if (claimed) { await executeRun(config, store, claimed, signal); continue; }
       }
       await delay(1500, undefined, { signal });

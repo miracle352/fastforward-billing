@@ -10,7 +10,7 @@ export function credentialValues(environment: NodeJS.ProcessEnv): string[] {
     else if (value && typeof value === 'object') Object.values(value).forEach(item => collect(item, depth + 1));
   };
   for (const [name, value] of Object.entries(environment))
-    if (/(?:KEY|SECRET|PASSWORD|TOKEN|CREDENTIAL|AUTH|COOKIE)/i.test(name)) collect(value);
+    if (/(?:KEY|SECRET|PASSWORD|TOKEN|CREDENTIAL|AUTH|COOKIE|DATABASE_URL|POSTGRES_URL|CONNECTION_STRING)/i.test(name)) collect(value);
   return [...values].sort((a,b) => b.length - a.length);
 }
 export function redactDiagnosticText(value: string, environment: NodeJS.ProcessEnv = process.env): string {
@@ -21,6 +21,7 @@ export function redactDiagnosticText(value: string, environment: NodeJS.ProcessE
     if (encoded !== secret) redacted = redacted.split(encoded).join('[REDACTED]');
   }
   return redacted.replace(/\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+\b|\bwhsec_[A-Za-z0-9]+\b|\bgsk_[A-Za-z0-9]+\b|\bskp_[A-Za-z0-9_-]+\b/gi, '[REDACTED]')
+    .replace(/(postgres(?:ql)?:\/\/)[^@\s]+@/gi, '$1[REDACTED]@')
     .replace(/\bBearer\s+[A-Za-z0-9._~+\/-]+/gi, 'Bearer [REDACTED]');
 }
 export function safeDiagnosticSummary(environment: NodeJS.ProcessEnv) {

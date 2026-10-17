@@ -1,0 +1,114 @@
+{
+  "checkedAt": "2026-10-17T23:12:35.964Z",
+  "stripeProjectsOwnerRestored": true,
+  "neon": {
+    "plan": "Free",
+    "component": "free Postgres",
+    "provisioned": true,
+    "realVerification": true,
+    "testNamespaceRemoved": true,
+    "migration": {
+      "sourcePreserved": true,
+      "rows": {
+        "sessions": 12,
+        "runs": 4,
+        "run_requests": 0,
+        "events": 90,
+        "artifacts": 16,
+        "metadata": 7
+      },
+      "allRowsMatched": true,
+      "all16ArtifactHashesMatched": true
+    },
+    "http": {
+      "passedCheckpoint": true,
+      "artifactHashesMatched": 4,
+      "anonymousStatus": 401,
+      "otherVisitorStatus": 404
+    },
+    "afterProcessRestart": {
+      "checkedAt": "2026-10-17T23:14:32.997Z",
+      "postgresProcessRestart": true,
+      "httpSessionCommitsObservedInNeon": [
+        3000,
+        3001
+      ],
+      "protectedArtifactHashes": 4,
+      "anonymousDenied": true,
+      "localAdmissionRestored": true,
+      "ready": true,
+      "providerStatuses": [
+        {
+          "id": "stripe",
+          "status": "ready"
+        },
+        {
+          "id": "stripe_readonly",
+          "status": "ready"
+        },
+        {
+          "id": "createos",
+          "status": "ready"
+        },
+        {
+          "id": "groq",
+          "status": "ready"
+        }
+      ],
+      "activeJobs": 0,
+      "cleanupPending": 0,
+      "modelCalls": 0,
+      "sandboxCreations": 0
+    }
+  },
+  "checks": {
+    "typecheck": "passed",
+    "backendTests": 46,
+    "privacyTestsAfterConnectionStringChange": 4,
+    "productionIntegration": "passed"
+  },
+  "usage": {
+    "liveRepairRuns": 0,
+    "modelCalls": 0,
+    "sandboxCreations": 0
+  },
+  "hosting": {
+    "deployed": false,
+    "projectCreated": false,
+    "automaticApprovalRejected": true,
+    "reason": "Explicitly disabling optional security scan requires separate approval",
+    "creditAmount": 395.4321609482359,
+    "planAmount": 0,
+    "automaticGnodeConversionEnabled": true,
+    "paidPlanApproved": false,
+    "topUpApproved": false
+  },
+  "credentials": {
+    "managedKeysRevoked": 4,
+    "managedKeyRejectionStatuses": [
+      401,
+      401,
+      401,
+      401
+    ],
+    "exactExposedTokenStatus": 200,
+    "sameAccountAsReplacement": true,
+    "runtimeResourceRotated": true,
+    "incidentResolved": false,
+    "carryRuntimeAdoptionVerified": false
+  },
+  "remaining": [
+    "Exact exposed integration token revocation",
+    "Carry runtime replacement adoption",
+    "Security-scan setting approval",
+    "Verified free-credit-only hosting controls",
+    "Public HTTPS deployment and replacement persistence"
+  ],
+  "credentialScan": {
+    "stagedFiles": 32,
+    "trackedFiles": 95,
+    "reachableHistoricalBlobs": 125,
+    "privateComparisonValues": 32,
+    "findings": 0
+  }
+}

@@ -1,11 +1,11 @@
 import {execFileSync} from 'node:child_process';
-import {existsSync,readFileSync} from 'node:fs';
+import {existsSync,readFileSync,readdirSync} from 'node:fs';
 import {parseEnv} from 'node:util';
 import {credentialValues} from '../apps/api/src/privacy.ts';
 
 try {
 const environment={...process.env,...(existsSync('.env')?parseEnv(readFileSync('.env','utf8')):{})};
-const sensitive=credentialValues(environment);
+const sensitive=[...new Set([credentialValues(environment),...['.local/credential-backups','.local/full-rotation-backups'].filter(existsSync).flatMap(directory=>readdirSync(directory).filter(name=>name.endsWith('.env')).map(name=>credentialValues(parseEnv(readFileSync(directory+'/'+name,'utf8')))))].flat())];
 const args=process.argv.slice(2);const history=args.includes('--history');const tracked=args.includes('--tracked');
 const git=(args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:50_000_000,stdio:['pipe','pipe','pipe']});
 const files=git(tracked?['ls-files']:['diff','--cached','--name-only','--diff-filter=ACM']).trim().split(/\r?\n/).filter(Boolean);

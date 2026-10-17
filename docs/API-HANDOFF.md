@@ -26,3 +26,14 @@ POST /api/runs accepts optional Idempotency-Key (8-128 characters: letters/numbe
 Status events now include data.status='provisioning' on claim; observation batches include data.attempt. Cancellation is a request until cleanup is confirmed. Lease expiry fences old writes and retains cancellation intent; recovery may finish cancelled only after known resource cleanup is proven. An unacknowledged provider creation or missing legacy resource metadata remains interrupted/cleanup-blocked for operator reconciliation, never assumed empty or successful. No automatic discovery for unknown provider allocations is implemented.
 
 Offline audit: 37 backend tests, root typecheck and current production frontend/API integration passed. Prior real-run evidence was reused; no new live run or generation.
+
+## Operator recovery and optional persistent database - 2026-10-17
+
+No public endpoint or payload schema changed. Operator-only scripts/reconcile-cleanup.ts validates a private run/kind/id receipt by reading actual provider identity, then requires independent cleanup before releasing the gate. Missing or foreign objects do not count as successful cleanup. FASTFORWARD_ACCEPT_RUNS=false returns503 ADMISSION_PAUSED for new submissions, while existing request-key replays and saved history remain available. This supports an idle migration without creating independent local/cloud spending allowances.
+
+Optional DATABASE_URL selects the Postgres adapter; SQLite remains the local default. The async API/store regression suite passed, but actual Postgres and hosted persistence verification remain pending the approved Neon Free provisioning and correct Stripe administrative account.
+
+
+## Verified Neon cutover - 2026-10-18, 00:14 Lagos
+
+The approved Neon Free database is provisioned and its real concurrency/reopen/ownership/cancellation/fencing checks passed. Idle SQLite history, artifacts, sessions and allowance records were migrated and compared row-for-row; both local services now use Postgres. Four saved report downloads and anonymous/foreign-visitor denials passed over HTTP. Admission was restored after migration. Public hosting remains pending, with no new live repair used. Current validation:46 backend tests, root typecheck and production frontend/API integration passed.

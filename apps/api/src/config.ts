@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 const Budget = z.coerce.number().int().nonnegative();
 const Env = z.object({
+  FASTFORWARD_ACCEPT_RUNS: z.enum(['true','false']).default('true'),
+  DATABASE_URL: z.string().default('').refine(value => {if(!value)return true;try{const url=new URL(value);return ['postgres:','postgresql:'].includes(url.protocol)&&url.hostname.endsWith('.neon.tech');}catch{return false;}}),
   HOST: z.string().default('127.0.0.1'), PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   APP_ORIGIN: z.string().url().default('http://localhost:5173'),
   FASTFORWARD_DATA_DIR: z.string().default('.local/data'),
@@ -25,7 +27,8 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
   if (env.STRIPE_READONLY_KEY && !env.STRIPE_READONLY_KEY.startsWith('rk_test_')) throw new Error('The generated application requires a restricted Stripe TEST key.');
   const origin = new URL(env.APP_ORIGIN).origin;
   return {
-    server: { host: env.HOST, port: env.PORT, origin, dataDir: resolve(env.FASTFORWARD_DATA_DIR), globalDailyLimit: env.MAX_RUNS_PER_DAY, ownerDailyLimit: Math.min(env.MAX_RUNS_PER_DAY, 3), secureCookies: origin.startsWith('https:'), sessionSecret: env.FASTFORWARD_SESSION_SECRET },
+    databaseUrl: env.DATABASE_URL,
+    server: { acceptNewRuns: env.FASTFORWARD_ACCEPT_RUNS === 'true', host: env.HOST, port: env.PORT, origin, dataDir: resolve(env.FASTFORWARD_DATA_DIR), globalDailyLimit: env.MAX_RUNS_PER_DAY, ownerDailyLimit: Math.min(env.MAX_RUNS_PER_DAY, 3), secureCookies: origin.startsWith('https:'), sessionSecret: env.FASTFORWARD_SESSION_SECRET },
     stripe: { controllerKey: env.STRIPE_SECRET_KEY, readonlyKey: env.STRIPE_READONLY_KEY, readonlyConfirmed: env.STRIPE_READONLY_CONFIRMED === 'true', pollTimeoutMs: 90_000 },
     createos: { apiKey: env.CREATEOS_SANDBOX_API_KEY, baseUrl: env.CREATEOS_SANDBOX_BASE_URL, shape: env.CREATEOS_SANDBOX_SHAPE, rootfs: 'devbox:1', egress: ['api.stripe.com:443'] },
     groq: { apiKey: env.GROQ_API_KEY, model: env.GROQ_MODEL, maxCalls: env.MAX_MODEL_CALLS_PER_RUN, maxOutputTokens: env.MODEL_MAX_OUTPUT_TOKENS, timeoutMs: 90_000 },

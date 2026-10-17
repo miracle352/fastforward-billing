@@ -12,4 +12,4 @@ This is a NEW hackathon implementation created during the event on October 17, 2
 - No AI images, emoji or decorative 3D. Use authored SVG and accessible motion. Label sample app, Stripe test data and simulated billing time.
 - Account credentials may be reused with permission; old product source and resources are not the submission.
 
-Architecture: Node 24 TypeScript trusted API plus persistent worker; SQLite on an explicitly persistent volume for this narrow deployment; React/Vite frontend on the same origin in production. Generated Python executes ONLY in CreateOS. The trusted evaluator/policy never becomes agent-editable. A hosted deployment without persistent storage cannot claim durable results.
+Architecture: Node 24 TypeScript trusted API plus persistent worker; local SQLite on an explicitly persistent volume, or the approved Neon Postgres adapter after real database verification; React/Vite frontend on the same origin in production. Generated Python executes ONLY in CreateOS. The trusted evaluator/policy never becomes agent-editable. A hosted deployment without verified persistent storage cannot claim durable results.
