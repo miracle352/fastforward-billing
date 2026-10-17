@@ -18,6 +18,7 @@
     "check": "tsc --noEmit",
     "test": "tsx --test apps/api/test/*.test.ts",
     "build": "npm run build --workspace @fastforward/web",
+    "verify:integration": "npm run build && tsx scripts/verify-built-app.ts",
     "providers:check": "node --env-file-if-exists=.env --import tsx apps/api/src/preflight-cli.ts"
   },
   "dependencies": {

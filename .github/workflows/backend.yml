@@ -1,4 +1,4 @@
-name: Backend checks
+name: Build and integration checks
 on: [push, pull_request]
 permissions:
   contents: read
@@ -14,3 +14,4 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
+      - run: npm run verify:integration

@@ -1,0 +1,59 @@
+{
+  "checkedAt": "2026-10-17T21:05:06.153Z",
+  "scope": "Browser-started local production frontend/API integration; not public hosting or cloud persistence.",
+  "status": "passed",
+  "createdAt": "2026-10-17T20:58:52.732Z",
+  "updatedAt": "2026-10-17T21:00:52.447Z",
+  "attempt": 3,
+  "verificationChecks": [
+    {
+      "scenario": "healthy_renewal",
+      "checkpoint": "verification: initial subscription access",
+      "verdict": "passed"
+    },
+    {
+      "scenario": "trial_payment_failure",
+      "checkpoint": "verification: initial subscription access",
+      "verdict": "passed"
+    },
+    {
+      "scenario": "healthy_renewal",
+      "checkpoint": "verification: after billing transition",
+      "verdict": "passed"
+    },
+    {
+      "scenario": "trial_payment_failure",
+      "checkpoint": "verification: after billing transition",
+      "verdict": "passed"
+    },
+    {
+      "scenario": "healthy_renewal",
+      "checkpoint": "verification: unauthenticated report",
+      "verdict": "passed"
+    },
+    {
+      "scenario": "healthy_renewal",
+      "checkpoint": "verification: unknown identity",
+      "verdict": "passed"
+    },
+    {
+      "scenario": "healthy_renewal",
+      "checkpoint": "verification: another customer report",
+      "verdict": "passed"
+    }
+  ],
+  "artifactCount": 8,
+  "browserReportDownloadHashMatched": true,
+  "modelCalls": 3,
+  "reportedTotalTokens": 4645,
+  "cleanupConfirmed": true,
+  "cleanupPending": 0,
+  "localApiRestartRestoredBrowserResult": true,
+  "browserConsoleErrorsObserved": 0,
+  "inspectedViewportWidths": [
+    1440,
+    768,
+    390
+  ],
+  "horizontalOverflowObserved": false
+}

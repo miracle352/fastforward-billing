@@ -6,7 +6,7 @@ Fastforward is a new CreateOS × Stripe Projects hackathon implementation. It ex
 
 ## Current evidence boundary
 
-The backend has completed one real repair run: the baseline exposed an access mismatch, one model call produced a handler, CreateOS executed it, and all seven fresh-customer checks passed. Cleanup was confirmed. See [the redacted receipt](docs/evidence/2026-10-17-live-repair.json) and BUILD-STATE.md. Frontend integration and persistent public hosting remain unverified. No claim is made about arbitrary applications, production safety, all billing paths, or a guaranteed completion time.
+The backend has completed one real repair run: the baseline exposed an access mismatch, one model call produced a handler, CreateOS executed it, and all seven fresh-customer checks passed. Cleanup was confirmed. See [the redacted receipt](docs/evidence/2026-10-17-live-repair.json) and BUILD-STATE.md. A second, browser-started run through the production frontend also passed all seven fresh-customer checks, with three bounded Groq calls and confirmed cleanup. Report download integrity and local API restart persistence were verified; see [the browser receipt](docs/evidence/2026-10-17-browser-integration.json). Persistent public hosting remains blocked; see [deployment findings](docs/DEPLOYMENT.md). No claim is made about arbitrary applications, production safety, all billing paths, or a guaranteed completion time.
 
 Only synthetic customers, Stripe TEST resources and simulated billing time are permitted. The sample policy allows access for active/trialing subscriptions and deliberately has no past-due grace period; that is a reviewed sample policy, not a universal Stripe rule.
 
@@ -36,7 +36,7 @@ npm run dev:worker
 npm run dev:web
 ```
 
-The frontend is being implemented separately by Claude Code in apps/web/. Follow docs/CLAUDE-DESIGN-BRIEF.md. Vite must proxy /api to http://127.0.0.1:3000. No provider credentials belong in browser variables.
+The React frontend is implemented by Claude Code in apps/web/ and uses the canonical API. Vite proxies /api to the local API; its actual origin must match APP_ORIGIN for POSTs. If port 5173 is occupied, configure a matching origin instead of relying on Vite selecting another port. No provider credentials belong in browser variables. Run npm run verify:integration to build the frontend and verify production asset/API serving without external provider calls.
 
 ## Build ownership
 
@@ -58,7 +58,7 @@ Jobs use durable SQLite storage, atomic claims, fenced leases and a separate per
 
 The production process starts API and worker through npm start and serves compiled Vite output on the API origin. Configure HOST=0.0.0.0, PORT, APP_ORIGIN to the real HTTPS origin, and FASTFORWARD_DATA_DIR to the mounted persistent volume. Do not scale this SQLite deployment to multiple replicas.
 
-Before claiming hosted completion, verify persistent storage, outbound provider access, worker restart recovery, browser-disconnect operation, anonymous/session boundaries, cleanup and the real public URL. Deployment entitlement and pricing are not yet verified.
+Before claiming hosted completion, verify persistent storage, outbound provider access, worker restart recovery, browser-disconnect operation, anonymous/session boundaries, cleanup and the real public URL. The approved free resource and available project quota were verified; current deployment credits and an explicitly persistent SQLite-compatible volume remain unverified. See docs/DEPLOYMENT.md.
 
 ## Sponsors and event submission
 
