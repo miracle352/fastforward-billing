@@ -1,0 +1,55 @@
+{
+  "version": 4,
+  "project": {
+    "catalog": "prod",
+    "initializedAt": "2026-10-17T20:10:39.224Z",
+    "merchantDisplayName": null,
+    "merchantId": "acct_1UQUjeK22iQ0h62M",
+    "projectId": "project_61Vb1tWHKPExjt3Lj16VZsh0ASSQ04efyJzDqbVMO1pY",
+    "projectName": "fastforward"
+  },
+  "providers": {
+    "createos": {
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "status": "complete"
+    },
+    "neon": {
+      "providerId": "prvdr_61UH8uNXFdoJUJOtT54AC",
+      "providerName": "Neon",
+      "status": "complete"
+    }
+  },
+  "resources": {
+    "fastforward-data": {
+      "createdAt": "2026-10-17T22:56:42.180Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "fastforward-data",
+      "providerId": "prvdr_61UH8uNXFdoJUJOtT54AC",
+      "providerName": "Neon",
+      "resourceId": "fres_61Vb4UBDkU5NUW4Ev16VZsh0ASSQ04efyJzDqbVMONDs",
+      "serviceId": "postgres"
+    },
+    "fastforward-data-plan": {
+      "createdAt": "2026-10-17T22:56:22.195Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "fastforward-data-plan",
+      "providerId": "prvdr_61UH8uNXFdoJUJOtT54AC",
+      "providerName": "Neon",
+      "resourceId": "fres_61Vb4Ts6BPf3usJMV16VZsh0ASSQ04efyJzDqbVMOKcq",
+      "serviceId": "free"
+    },
+    "fastforward-runtime": {
+      "createdAt": "2026-10-17T20:26:30.143Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "fastforward-runtime",
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "resourceId": "fres_61Vb28qV4tD9LQNC716VZsh0ASSQ04efyJzDqbVMONxw",
+      "serviceId": "project"
+    }
+  }
+}

@@ -14,6 +14,12 @@ for(const path of files){
  if(/(^|\/)(\.env(?:\..*)?|\.local|vault)(\/|$)/.test(path)&&path!=='.env.example')findings.push({path,issue:'Private path included'});
  const content=tracked&&existsSync(path)?readFileSync(path,'utf8'):git(['show',`:${path}`]);
  if(sensitive.some(value=>content.includes(value)||content.includes(JSON.stringify(value).slice(1,-1))))findings.push({path,issue:'Configured credential value found'});
+ if(path==='.projects/state.local.json'){
+  const state=JSON.parse(content);const allowed=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).every(k=>keys.includes(k))&&Object.values(v).every(x=>x===null||['string','number','boolean'].includes(typeof x));
+  const valid=Object.keys(state).every(k=>['version','project','providers','resources'].includes(k))&&allowed(state.project,['catalog','initializedAt','merchantDisplayName','merchantId','projectId','projectName'])&&Object.values(state.providers??{}).every(v=>allowed(v,['providerId','providerName','status']))&&Object.entries(state.resources??{}).every(([name,v])=>name.startsWith('fastforward-')&&allowed(v,['createdAt','lastStatus','livemode','name','providerId','providerName','resourceId','serviceId']));
+  if(!valid)findings.push({path,issue:'Submission identification must contain allowlisted public metadata only'});
+ }
+
 }
 let historicalBlobsScanned=0;
 if(history){
