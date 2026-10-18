@@ -2,33 +2,92 @@
 
 **Find and fix subscription-access bugs before your customers do.**
 
-Fastforward is a new CreateOS × Stripe Projects hackathon implementation. It exercises selected Stripe test subscription lifecycles against a deliberately incomplete sample application, generates a Python billing-handler repair, executes it in CreateOS, and verifies real protected report access with a fixed external evaluator.
+### [Launch the live demo →](https://fastforward-demo.vercel.app)
 
-## Current evidence boundary
+[Demo](https://fastforward-demo.vercel.app) · [Verified repair evidence](docs/evidence/) · [Architecture and API](docs/API-HANDOFF.md) · [Deployment](docs/DEPLOYMENT.md)
 
-The backend has three recorded successful real repair runs. In the first, the baseline exposed an access mismatch, one model call produced a handler, CreateOS executed it, and all seven fresh-customer checks passed. Cleanup was confirmed. See [the redacted receipt](docs/evidence/2026-10-17-live-repair.json) and BUILD-STATE.md. A second, browser-started run through the production frontend also passed all seven fresh-customer checks, with three bounded Groq calls and confirmed cleanup. Report download integrity and local API restart persistence were verified; see [the browser receipt](docs/evidence/2026-10-17-browser-integration.json). Persistent public hosting remains blocked; see [deployment findings](docs/DEPLOYMENT.md). No claim is made about arbitrary applications, production safety, all billing paths, or a guaranteed completion time.
+Fastforward tests what happens to customer access when a subscription changes. It advances real Stripe TEST billing clocks, finds an access-policy mismatch, asks Groq to repair the sample's Python billing handler, and runs that code inside CreateOS. A separate trusted evaluator then checks the repair against fresh customers, signed webhooks, invoices and protected reports.
 
-Only synthetic customers, Stripe TEST resources and simulated billing time are permitted. The sample policy allows access for active/trialing subscriptions and deliberately has no past-due grace period; that is a reviewed sample policy, not a universal Stripe rule.
+Built during the CreateOS × Stripe Projects hackathon on October 17, 2026.
 
-## Local setup
+## Try it
 
-Requires Node 24+.
+1. Open **[fastforward-demo.vercel.app](https://fastforward-demo.vercel.app)**. The short Vercel address opens the connected application.
+2. Select the supported billing scenarios and choose **Test my billing**.
+3. Follow the actual baseline, repair and fresh-clock verification. A completed run provides its report, generated source, patch and execution evidence.
+
+The demo uses synthetic customers and Stripe TEST resources only. Availability and execution limits are checked before a new run starts; provider failures are shown rather than replaced with simulated results.
+
+**Demo availability:** the public link currently routes through a temporary Cloudflare tunnel to the team's running API and persistent worker, backed by Neon. It requires the team computer to remain awake and online. Independent persistent public hosting is still unfinished; the CreateOS deployment currently returns HTTP503. [Observed public demo checks](docs/evidence/2026-10-18-vercel-demo.json) and [deployment findings](docs/DEPLOYMENT.md) document the distinction.
+
+## What Fastforward verifies
+
+| Scenario | Expected access |
+| --- | --- |
+| Healthy paid renewal | Customer keeps access; a distinct renewal invoice is verified. |
+| Trial ends with payment failure | Customer loses access when the subscription becomes past_due. |
+| Missing or unknown identity | Protected report access is denied. |
+| Another customer's report | Cross-customer access is denied. |
+
+The sample allows active or trialing subscriptions and has no past-due grace period. This is the sample's explicit policy, not a universal Stripe billing rule.
+
+## How it works
+
+1. **Observe the bug.** The trusted controller creates disposable Stripe test objects and checks real protected actions against the incomplete sample.
+2. **Generate a bounded repair.** Groq proposes a Python handler using only the permitted application capabilities.
+3. **Execute in isolation.** Generated code runs only in CreateOS, with restricted Stripe test reads and an explicit network destination allowlist.
+4. **Verify independently.** Fresh Stripe clocks and customer identities test the candidate through signed events, actual billing state and report access.
+5. **Save evidence and clean up.** The controller retains hash-addressed artifacts and confirms resource cleanup. A webhook HTTP200 alone never counts as a successful repair.
+
+The evaluator and access policy remain outside the generated-code sandbox. Controller, CreateOS and model credentials are never given to generated code or the browser.
+
+## Recorded results
+
+Three successful real repair runs are recorded, including a run started through the connected frontend. The latest bounded recheck passed all seven fresh-clock verification checks with one Groq call. Independent checks covered invoice identity, artifact hashes, anonymous and foreign-visitor denial, and resource cleanup.
+
+- [First real repair](docs/evidence/2026-10-17-live-repair.json)
+- [Browser integration](docs/evidence/2026-10-17-browser-integration.json)
+- [Bounded fresh-clock recheck](docs/evidence/2026-10-17-bounded-recheck.json)
+- [Independent cleanup audit](docs/evidence/2026-10-17-cleanup-recheck.json)
+- [Public demo and API restart checks](docs/evidence/2026-10-18-vercel-demo.json)
+
+Validation includes **47 backend regression tests**, TypeScript checks, compiled API/worker startup against Neon, and the production frontend/API integration check. [GitHub Actions](https://github.com/miracle352/fastforward-billing/actions) records published checks. Historical repair evidence is labeled and is not presented as a visitor's new run.
+
+Only the supplied sample and two billing scenarios are established by this evidence. Arbitrary applications, every billing path and production-payment safety are outside the verified scope.
+
+## Stack and execution limits
+
+| Component | Implementation |
+| --- | --- |
+| Interface | React, TypeScript and Vite |
+| Trusted API | Node24 and Fastify; same-origin frontend/API |
+| Persistent worker | Durable claims, fenced leases and independent cleanup recovery |
+| Storage | Approved Neon Free Postgres; SQLite supported locally |
+| Billing verification | Stripe Billing TEST clocks, invoices and signed webhooks |
+| Repair generation | Groq; no OpenAI API credit required |
+| Generated-code execution | CreateOS sandbox |
+| Public demo entry | Vercel Hobby redirect to the temporary HTTPS tunnel |
+
+The configured demo permits **three model calls per run**, **3000 output tokens per call**, a **600-second run deadline**, and **one active job**. Durable limits allow six global runs and three runs per visitor per rolling24 hours. A browser disconnect does not cancel a job; cancellation is confirmed only after cleanup is observed.
+
+## Run locally
+
+Requires **Node24+**.
 
 ```sh
 npm ci
-# Create .env from .env.example privately and populate server-only credentials.
+# Privately copy .env.example to .env and configure server-only credentials.
 npm run providers:check
-npm test
 npm run check
+npm test
+npm run verify:integration
 ```
 
-Configure a Stripe test controller key, a separately restricted read-only Stripe test key, CreateOS Sandbox key and Groq key. The restricted key must belong to the same test environment and have no write permissions. Set STRIPE_READONLY_CONFIRMED=true only after checking its configuration.
+Configure a Stripe TEST controller key, a separate restricted read-only Stripe TEST key for the same test environment, CreateOS Sandbox credentials and a Groq key. Set STRIPE_READONLY_CONFIRMED=true only after verifying its configuration. Never put provider secrets in VITE_ variables or commit .env.
 
-Explicit budgets default to zero. The operator must choose MAX_MODEL_CALLS_PER_RUN (1–3), MODEL_MAX_OUTPUT_TOKENS, MAX_RUNS_PER_DAY and the runtime bound before any run can start. Groq model visibility does not prove that the account has available token allowance; check actual account limits. No OpenAI API key is required.
+Execution budgets default to zero. Explicitly configure MAX_MODEL_CALLS_PER_RUN, MODEL_MAX_OUTPUT_TOKENS, MAX_RUNS_PER_DAY and RUN_TIMEOUT_SECONDS before enabling runs. Provider visibility does not establish available quota.
 
-The event-specific CreateOS endpoint is https://api-eu.sb.createos.sh, as provided by organisers. Keep the endpoint configurable; keys and actual account allocation must be verified.
-
-Development runs three processes:
+For development, run these in separate terminals:
 
 ```sh
 npm run dev:api
@@ -36,40 +95,30 @@ npm run dev:worker
 npm run dev:web
 ```
 
-The React frontend is implemented by Claude Code in apps/web/ and uses the canonical API. Vite proxies /api to the local API; its actual origin must match APP_ORIGIN for POSTs. If port 5173 is occupied, configure a matching origin instead of relying on Vite selecting another port. No provider credentials belong in browser variables. Run npm run verify:integration to build the frontend and verify production asset/API serving without external provider calls.
+Vite proxies /api to the API. Set APP_ORIGIN to the frontend's actual origin, including its port. The event-specific sandbox endpoint is https://api-eu.sb.createos.sh and remains configurable.
 
-## Build ownership
+For a compiled single-origin application:
 
-- Codex: trusted API, durable worker, schemas, provider adapters, tests and deployment.
-- Claude Code: React/Vite interface in apps/web/ and frontend notes.
-- Canonical API schemas: packages/contracts/src/index.ts.
-- Boundary and state rules: docs/API-HANDOFF.md.
-- Only Codex updates the shared root dependency lockfile and pushes commits.
+```sh
+npm run build:server
+npm run build
+npm run start:compiled
+```
 
-## Verification and safety
+Hosted Docker startup requires DATABASE_URL and refuses an ephemeral SQLite fallback. See [.env.example](.env.example), [deployment configuration](deploy/createos.json) and [deployment notes](docs/DEPLOYMENT.md).
 
-The evaluator/policy lives outside the generated-code VM. It tests authenticated private report access and denied unauthenticated/cross-customer requests. Generated Python receives only restricted Stripe test reads. It never receives controller, CreateOS or model credentials.
+## Project guide
 
-CreateOS networking uses an explicit nonempty destination allowlist before unfamiliar code runs. Source, execution receipts, observations and artifacts are retained by the trusted controller. A fresh Stripe clock and fresh customer identities are used for verification. Webhook HTTP 200 alone is never a passing result.
+- [BUILD-STATE.md](BUILD-STATE.md): verified checkpoints, actual results and remaining blockers.
+- [API handoff](docs/API-HANDOFF.md): authentication, contracts and lifecycle rules.
+- [Canonical contracts](packages/contracts/src/index.ts): shared Zod payload schemas.
+- [Submission summary](docs/SUBMISSION.md): product description and demo scope.
+- [Frontend coordination](docs/frontend/REQUESTS.md): concurrent integration requests.
 
-Jobs use local SQLite or the approved Neon Postgres store, atomic claims, fenced leases and a separate persistent worker. Hosted Docker startup requires Postgres and cannot silently fall back to an ephemeral SQLite database. A browser disconnect does not itself cancel a worker job. Cancellation remains requested until resource cleanup is observed.
+Codex owns the backend, contracts, integration and deployment. Claude Code owns apps/web/ and frontend design. Only Codex updates the shared dependency lockfile and publishes commits.
 
-## Hosting
+## Attribution and scope
 
-The Docker image compiles the trusted API and worker, starts both through npm run start:compiled, and serves compiled Vite output from the same API origin. Local development keeps npm start and SQLite support. Hosted records use the already-approved Neon Free database; CreateOS does not provide a verified SQLite-compatible deployment volume.
+Stripe test clocks and CreateOS's publicly proposed Stripe webhook fixer are existing infrastructure and prior art. Fastforward focuses on independently verified customer-access behavior across billing lifecycles, beyond successful event delivery. Stripe Projects provisions the event stack; Groq supplies repair generation. No Swytchcode integration is claimed.
 
-The concrete configuration is in deploy/createos.json. The provider allocated https://production-fastforward-runtime.tyzo.nodeops.app, but actual health checks currently return503 despite provider-reported successful deployment. Public hosting and cloud restart persistence are **not verified**. Do not present this as a live passing demo. See docs/DEPLOYMENT.md for actual storage, credit, cost and failure evidence.
-
-Validated:47 backend regressions, root typecheck, compiled API/worker startup against Neon and the built frontend/API integration. Existing real repair evidence is preserved without consuming another generation or sandbox allowance.
-
-## Sponsors and event submission
-
-Provision the new stack through Stripe Projects during the event. Stripe Billing supplies real test lifecycle state; CreateOS runs generated code and exposes the sample webhook URL. Swytchcode is optional until a useful, available governance path is verified; no integration is claimed without execution evidence.
-
-Organiser updates specify submission by October 17, 2026, 5:30 PM Pacific (October 18, 01:30 Lagos). Submit the event form and Stripe Projects leaderboard with code **CreateOS-2026**. Public repository, viewable 2–3-minute video including a person on camera, team details and a tagged public post are required per supplied announcements.
-
-## Prior art and licences
-
-CreateOS publicly proposes a Stripe webhook fixer. This project concentrates on approved customer-access behaviour after coherent subscription lifecycles and fresh verification, beyond successful HTTP delivery. Stripe test clocks are existing infrastructure, not an invention of this project.
-
-The original application is newly written for the event. Open-source dependencies retain their respective licences. Do not commit credentials, local databases, private artifacts or old Carry source. No AI-generated media is used.
+The application was newly written during the event. Open-source dependencies retain their respective licences. No prior Carry source, private credentials, local databases or private reports belong in this repository. No AI-generated media is used.
