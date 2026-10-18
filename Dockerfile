@@ -9,8 +9,8 @@ COPY . .
 # Validate both the API and compiled React frontend before deployment.
 RUN npm run check && npm run build:server && npm run build
 RUN mkdir -p /data && chown -R node:node /data
-ENV HOST=0.0.0.0 PORT=3000 FASTFORWARD_DATA_DIR=/data FASTFORWARD_REQUIRE_POSTGRES=true
+ENV HOST=0.0.0.0 PORT=80 FASTFORWARD_DATA_DIR=/data FASTFORWARD_REQUIRE_POSTGRES=true
 USER node
-EXPOSE 3000
+EXPOSE 80
 # Hosted records persist in Neon; /data is temporary scratch.
 CMD ["npm", "run", "start:compiled"]

@@ -6,7 +6,7 @@ Current observation: 2026-10-18 Lagos. **Public hosting is not verified.** The p
 
 Use the existing approved CreateOS resource fastforward-runtime for one Node24 Docker image containing the compiled React frontend, trusted API and supervisor-managed persistent worker. Use the already-approved, provisioned Neon Free fastforward-data Postgres database for sessions, runs, allowances, events, resource recovery and artifact content. No additional provider resource is proposed.
 
-The applied project/environment configuration is summarized without secrets in deploy/createos.json. This is an operator reference for the project and environment API settings, not a CLI config file. The provider's actual runtime catalogue lists dockerfile separately from node:24; the selected target is now dockerfile, with Node24 supplied by FROM node:24-bookworm-slim. Application port3000; one production replica,500 millicores and1024MB RAM (free-plan ceiling, increased from200/500 for startup headroom). Provider build limits are1000 millicores,1024MB and1800 seconds.
+The applied project/environment configuration is summarized without secrets in deploy/createos.json. This is an operator reference for the project and environment API settings, not a CLI config file. The provider's actual runtime catalogue lists dockerfile separately from node:24; the selected target is now dockerfile, with Node24 supplied by FROM node:24-bookworm-slim. Application port80; one production replica,500 millicores and1024MB RAM (free-plan ceiling, increased from200/500 for startup headroom). Provider build limits are1000 millicores,1024MB and1800 seconds.
 
 The user explicitly approved disabling only this project's optional480-credit security scan. Build AI remains off. No paid plan, upgrade, payment or top-up was approved or requested.
 
@@ -32,7 +32,7 @@ The balance would cover roughly5.5 days of that CPU/RAM estimate alone. Existing
 
 Credentials are only in provider server-side runtime settings and private local files. Runtime readback matched the selected Stripe TEST controller/restricted reader, Groq, sandbox and Neon values. Build variables are empty. No VITE_ credential, uploaded .env, private report, SQLite database or provider vault is included.
 
-scripts/prepare-createos-upload.mjs builds an allowlisted allowlisted source snapshot, checks configured credential values and enforces the provider's100-file upload limit. The latest compiled-runtime snapshot contains55 files and420,689 bytes. SHA256 of its sorted path/hash manifest:0347aca7c53807d6a9b7ab9e7914ffd33f170ce1d64136c0826f1d0de45dd0a6.
+scripts/prepare-createos-upload.mjs builds an allowlisted source snapshot, checks configured credential values and enforces the provider's100-file upload limit. The latest compiled-runtime snapshot contains55 files and420,685 bytes. SHA256 of its sorted path/hash manifest:b30664279d8b08327c067359200b1cd0ab7fe4022140162fb1c4bb073b5372f7.
 
 Keep3 Groq calls/run,3000 output tokens/call,600-second execution deadline,6 global runs and3 visitor runs per rolling24h. Postgres admission and lease fencing retain one active job across processes. Cloud admission remains false until actual public verification passes. Local working services remain available on3000/3001 and share Neon; their existing evidence/allowances are preserved.
 
@@ -49,3 +49,9 @@ Do not spend another repair allowance to diagnose hosting. This continuation use
 ## Deadline-focused compiled runtime
 
 A fifth image compiles API/worker with tsc and starts plain Node24 processes, removing runtime TypeScript-loader overhead. The actual compiled supervisor, API, persistent worker and HTTP session passed locally against Neon with admission paused; no generation or sandbox was used. The source still supports local TypeScript development. The compiled image built and was assigned to Production, but its observed public health remained503. Resource readback confirmed500 millicores/1024MB/one replica. API startup evidence is still absent from provider runtime logs; the failure cause has not been established. The team reported30 minutes remaining and could not locate the dashboard; a corrected direct dashboard link was supplied privately.
+
+## Final submission verification
+
+The sixth build also completed and was assigned to Production. It tests the provider default ingress port80 with matching Docker EXPOSE, application PORT and project setting, retaining the non-root application user. Actual production health still returned503 after assignment; runtime logs remained a listening placeholder with no startup marker. No root cause was established and no further speculative rebuild was initiated. Superseded deployments were slept or requested to sleep through the official recoverable operation; source/history and Neon were preserved. The latest unsuccessful Production candidate remains assigned, with admission paused.
+
+Published source commit a30b6b7 passed GitHub Actions run39081106950, including typecheck, compiled build, all47 backend tests and production frontend/API integration: https://github.com/miracle352/fastforward-billing/actions/runs/39081106950 . Local3001 was rechecked with health200, ready=true and all four providers ready. Use the local recording and real redacted repair evidence for the deadline; public hosting remains an explicitly disclosed blocker.

@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-10-17T23:57:39.909Z",
+  "checkedAt": "2026-10-18T00:05:37.957Z",
   "publicHostingVerified": false,
   "candidateUrl": "https://production-fastforward-runtime.tyzo.nodeops.app",
   "actualHealthStatus": 503,
@@ -16,7 +16,10 @@
     "buildAI": false,
     "runtimeSecretsReadbackMatched": true,
     "buildVariablesEmpty": true,
-    "sourceFiles": 55
+    "sourceFiles": 55,
+    "port": 80,
+    "sourceBytes": 420685,
+    "sourceManifestSha256": "b30664279d8b08327c067359200b1cd0ab7fe4022140162fb1c4bb073b5372f7"
   },
   "storage": {
     "provider": "existing approved Neon Free",
@@ -33,7 +36,12 @@
     "typecheck": "passed",
     "compiledBuild": "passed",
     "compiledApiAndWorkerStartupAgainstNeon": "passed locally",
-    "productionFrontendAPIIntegration": "passed locally"
+    "productionFrontendAPIIntegration": "passed locally",
+    "githubCI": {
+      "commit": "a30b6b77338a7e913ee43710a91ade0ab2794a6f",
+      "conclusion": "success",
+      "url": "https://github.com/miracle352/fastforward-billing/actions/runs/39081106950"
+    }
   },
   "credits": {
     "observedAmount": 395.0357146033739,
@@ -45,13 +53,15 @@
     "automaticGnodeConversionDisabled": false
   },
   "observations": {
-    "successfulBuilds": 5,
+    "successfulBuilds": 6,
     "successfulPublicHealthChecks": 0,
     "runtimeStartupMarkerObserved": false,
     "olderPreviewsSlept": true,
     "localDemo": "http://127.0.0.1:3001",
     "localProvidersReady": 4,
-    "localCompiledWorkerObserved": true
+    "localCompiledWorkerObserved": true,
+    "supersededPreviewsSleepRequested": true,
+    "lastPublicHealthCheckedAt": "2026-10-18T00:04:16.225Z"
   },
   "usage": {
     "agentInitiatedRepairRuns": 0,
