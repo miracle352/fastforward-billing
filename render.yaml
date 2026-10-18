@@ -1,0 +1,100 @@
+{
+  "services": [
+    {
+      "type": "web",
+      "name": "fastforward-runtime",
+      "runtime": "node",
+      "plan": "free",
+      "branch": "codex/fastforward-backend",
+      "buildCommand": "npm ci --include=dev && npm run check && npm run build:server && npm run build",
+      "startCommand": "APP_ORIGIN=\"$RENDER_EXTERNAL_URL\" node dist/server/apps/api/src/supervisor.js",
+      "healthCheckPath": "/api/health",
+      "envVars": [
+        {
+          "key": "NODE_VERSION",
+          "value": "24"
+        },
+        {
+          "key": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "key": "HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "key": "PORT",
+          "value": "10000"
+        },
+        {
+          "key": "FASTFORWARD_REQUIRE_POSTGRES",
+          "value": "true"
+        },
+        {
+          "key": "FASTFORWARD_ACCEPT_RUNS",
+          "value": "false"
+        },
+        {
+          "key": "FASTFORWARD_DATA_DIR",
+          "value": "/tmp/fastforward"
+        },
+        {
+          "key": "STRIPE_READONLY_CONFIRMED",
+          "value": "true"
+        },
+        {
+          "key": "CREATEOS_SANDBOX_BASE_URL",
+          "value": "https://api-eu.sb.createos.sh"
+        },
+        {
+          "key": "CREATEOS_SANDBOX_SHAPE",
+          "value": "s-1vcpu-1gb"
+        },
+        {
+          "key": "GROQ_MODEL",
+          "value": "openai/gpt-oss-120b"
+        },
+        {
+          "key": "MAX_MODEL_CALLS_PER_RUN",
+          "value": "3"
+        },
+        {
+          "key": "MODEL_MAX_OUTPUT_TOKENS",
+          "value": "3000"
+        },
+        {
+          "key": "MAX_RUNS_PER_DAY",
+          "value": "6"
+        },
+        {
+          "key": "RUN_TIMEOUT_SECONDS",
+          "value": "600"
+        },
+        {
+          "key": "DATABASE_URL",
+          "sync": false
+        },
+        {
+          "key": "STRIPE_SECRET_KEY",
+          "sync": false
+        },
+        {
+          "key": "STRIPE_READONLY_KEY",
+          "sync": false
+        },
+        {
+          "key": "CREATEOS_SANDBOX_API_KEY",
+          "sync": false
+        },
+        {
+          "key": "GROQ_API_KEY",
+          "sync": false
+        },
+        {
+          "key": "FASTFORWARD_SESSION_SECRET",
+          "sync": false
+        }
+      ]
+    }
+  ]
+}

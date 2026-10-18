@@ -144,3 +144,10 @@ The supplied sample's two supported scenarios have three observed successful rea
 - README refined for submission: working https://fastforward-demo.vercel.app placed prominently at the top and in the Try it flow; clarified actual mechanism, supported scenarios, real receipts, budgets, setup and temporary-tunnel availability. Removed stale implication that no public demo exists while retaining the independent persistent-hosting blocker. Documentation-only change; no live allowance consumed.
 
 - Submission verifier reported missing .projects/state.local.json. Prepared a public metadata-only index entry containing actual Fastforward project/merchant identity, provider IDs/status and only Fastforward resource references. Full local CLI state remains unchanged/private; authentication request URLs, tokens, provider credential containers and unrelated Carry metadata are excluded from the published snapshot. No resource was recreated. A GitHub default-branch file check is required before retrying verification.
+
+
+## Laptop-independent hosting follow-up
+
+- User requires the submitted URL to work after laptop shutdown. Reconfirmed temporary HTTPS tunnel200 and CreateOS production503. Vercel itself persists, but its current destination/API/worker depend on this laptop; no independent deployment is claimed.
+- Seventh build reused the exact uploaded source with one runtime setting change: explicit node dist/server/apps/api/src/supervisor.js. Build/deployment and Production assignment succeeded; actual health remained503. No new repair/model/sandbox/resource was used. Existing account credits snapshot393.60966935726606; quota2/50 projects. No paid action.
+- Prepared render.yaml and docs/RENDER-FREE-PROPOSAL.md for one Render Free web service using existing Neon and compiled supervisor. USD0 compute,750 shared hours/month,15-minute idle sleep/request wake; account allowances, capacity and no-overage controls remain unverified. No Render resource created; separate user approval required under existing resource restrictions. Current Vercel entry/tunnel remains unchanged.

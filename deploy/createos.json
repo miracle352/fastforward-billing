@@ -9,7 +9,8 @@
     "directoryPath": ".",
     "port": 80,
     "useBuildAI": false,
-    "buildVars": {}
+    "buildVars": {},
+    "runCommand": "node dist/server/apps/api/src/supervisor.js"
   },
   "production": {
     "resources": {
