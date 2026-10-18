@@ -1,0 +1,100 @@
+{
+  "checkedAt": "2026-10-18T00:19:22.878Z",
+  "publicDemoEntry": "https://fastforward-demo.vercel.app",
+  "redirectDestination": "https://prepaid-helped-stands-aug.trycloudflare.com",
+  "temporaryLocalTunnel": true,
+  "persistentPublicHosting": false,
+  "vercelPlan": "hobby",
+  "paidPlanOrTopup": false,
+  "verification": {
+    "checkedAt": "2026-10-18T00:18:21.432Z",
+    "mode": "before",
+    "origin": "https://prepaid-helped-stands-aug.trycloudflare.com",
+    "actualFrontend": true,
+    "assetsServed": 2,
+    "noConfiguredSecretsInAssets": true,
+    "httpsHealth": true,
+    "secureHttpOnlyStrictCookie": true,
+    "visitorSessionSurvives": true,
+    "visitorHistoryIsolated": true,
+    "csrfDenied": true,
+    "savedRealPassedRun": true,
+    "protectedArtifactHashes": 4,
+    "anonymousDenied": true,
+    "otherVisitorDenied": true,
+    "ready": true,
+    "providerStatuses": [
+      {
+        "id": "stripe",
+        "status": "ready"
+      },
+      {
+        "id": "stripe_readonly",
+        "status": "ready"
+      },
+      {
+        "id": "createos",
+        "status": "ready"
+      },
+      {
+        "id": "groq",
+        "status": "ready"
+      }
+    ],
+    "modelCalls": 0,
+    "sandboxCreations": 0
+  },
+  "limits": {
+    "modelCallsPerRun": 3,
+    "outputTokensPerCall": 3000,
+    "runSeconds": 600,
+    "activeJobs": 1,
+    "globalRunsPerRollingDay": 6,
+    "ownerRunsPerRollingDay": 3
+  },
+  "operation": "Requires this computer, dedicated Fastforward API, existing worker, internet and cloudflared to remain running.",
+  "agentInitiatedRepairRuns": 0,
+  "entryVerification": {
+    "status": 200,
+    "browserMetaRefresh": true,
+    "targetHealth": 200
+  },
+  "apiProcessRestartVerification": {
+    "checkedAt": "2026-10-18T00:20:15.576Z",
+    "mode": "after",
+    "origin": "https://prepaid-helped-stands-aug.trycloudflare.com",
+    "actualFrontend": true,
+    "assetsServed": 2,
+    "noConfiguredSecretsInAssets": true,
+    "httpsHealth": true,
+    "secureHttpOnlyStrictCookie": true,
+    "visitorSessionSurvives": true,
+    "visitorHistoryIsolated": true,
+    "csrfDenied": true,
+    "savedRealPassedRun": true,
+    "protectedArtifactHashes": 4,
+    "anonymousDenied": true,
+    "otherVisitorDenied": true,
+    "ready": true,
+    "providerStatuses": [
+      {
+        "id": "stripe",
+        "status": "ready"
+      },
+      {
+        "id": "stripe_readonly",
+        "status": "ready"
+      },
+      {
+        "id": "createos",
+        "status": "ready"
+      },
+      {
+        "id": "groq",
+        "status": "ready"
+      }
+    ],
+    "modelCalls": 0,
+    "sandboxCreations": 0
+  }
+}

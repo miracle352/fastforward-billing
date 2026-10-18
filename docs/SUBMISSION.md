@@ -19,3 +19,7 @@ Public candidate: https://production-fastforward-runtime.tyzo.nodeops.app . Its 
 For submission, use the real local demonstration/recorded repair evidence if cloud launch remains blocked, and disclose the hosting limitation. The public repository and redacted receipts are reviewable without any credential. A person-on-camera demo video and actual event-form/public-post submissions require the team's own participation; no submission has been fabricated or sent.
 
 Published source checkpoint a30b6b7 passed [GitHub CI](https://github.com/miracle352/fastforward-billing/actions/runs/39081106950). For the immediate demo recording, open http://127.0.0.1:3001 on the team computer; this localhost address is not a public judge-accessible URL. The sixth CreateOS build also returned503 at public health, so the hosting limitation remains disclosed.
+
+## Working public demo
+
+Submit https://fastforward-demo.vercel.app . It opens the real app at https://prepaid-helped-stands-aug.trycloudflare.com, verified over public HTTPS with all four providers ready. This is a temporary demo backed by the team computer and persistent Neon data; the computer must stay awake and online. It is not independent persistent cloud hosting. Vercel receives no server credentials.
